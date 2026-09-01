@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <Wire.h>
+#include "secrets.h"
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <MFRC522_I2C.h>
@@ -7,8 +8,6 @@
 
 IPAddress       serverIP;
 MFRC522_I2C     mfrc522(0x28, -1);
-const char*     WIFI_SSID           = "POP-ANTO";
-const char*     WIFI_PASSWORD       = "subnautica6003";
 const char*     mdnsName            = "transcendence";
 const uint16_t  SERVER_PORT         = 3000;
 
@@ -17,7 +16,7 @@ String uidInHex()
   String s = "";
   for (byte i = 0; i < mfrc522.uid.size; i++)
   {
-    if (mfrc522.uid.uidByte[i] < 16) 
+    if (mfrc522.uid.uidByte[i] < 16)
       s += "0";
     s += String(mfrc522.uid.uidByte[i], HEX);
   }
@@ -27,17 +26,27 @@ String uidInHex()
 
 void sendScan(const String& uid)
 {
-  HTTPClient http;
-  String url = "http://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/scan";
+  HTTPClient  http;
+  int         status;
+  String      url     = "http://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/scan";
 
   http.begin(url);
+  http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Token", DEVICE_TOKEN);
 
   String payload = "{\"uid\":\"" + uid + "\"}";
-  int status = http.POST(payload);
+  status = http.POST(payload);
 
-  Serial.print("POST /api/scan -> statut ");
-  Serial.println(status);
+  if (status == 200)
+    Serial.println("Scan sent successfully");
+  else
+  {
+    Serial.print("Scan failed, code: ");
+    Serial.println(status);
+    Serial.println("Refreshing server IP via mDNS...");
+    serverIP = MDNS.queryHost(mdnsName);
+  }
 
   http.end();
 }
@@ -48,29 +57,31 @@ void sendHello()
   String url = "http://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/hello";
 
   http.begin(url);
+  http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Token", DEVICE_TOKEN);
 
   String payload = "{\"device\":\"esp32-badge\",\"status\":\"online\"}";
   int status = http.POST(payload);
 
-  Serial.print("POST /api/hello -> statut ");
+  Serial.print("POST /api/hello -> status ");
   Serial.println(status);
 
   http.end();
 }
 
-void connectWifi() 
+void connectWifi()
 {
-  Serial.print("Connexion ");
+  Serial.print("Connecting to ");
   Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) 
+  while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
   }
   Serial.println();
-  Serial.print("IP ESP32 : ");
+  Serial.print("ESP32 IP: ");
   Serial.println(WiFi.localIP());
 }
 
@@ -85,12 +96,12 @@ void setup() {
   serverIP = MDNS.queryHost(mdnsName);
   while (serverIP == IPAddress(0, 0, 0, 0))
   {
-    Serial.println("mDNS : serveur introuvable, nouvelle tentative...");
+    Serial.println("mDNS: server not found, retrying...");
     delay(1000);
     serverIP = MDNS.queryHost(mdnsName);
   }
 
-  Serial.print("mDNS : ");
+  Serial.print("mDNS: ");
   Serial.print(mdnsName);
   Serial.print(".local -> ");
   Serial.println(serverIP);
@@ -98,15 +109,17 @@ void setup() {
   sendHello();
 }
 
-void loop() 
+void loop()
 {
-  if (!mfrc522.PICC_IsNewCardPresent()) 
+  if (WiFi.status() != WL_CONNECTED)
+    connectWifi();
+  if (!mfrc522.PICC_IsNewCardPresent())
     return;
   if (!mfrc522.PICC_ReadCardSerial())
     return;
 
   String uid = uidInHex();
-  Serial.print("UID lu : ");
+  Serial.print("UID read: ");
   Serial.println(uid);
 
   sendScan(uid);
