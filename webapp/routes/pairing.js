@@ -6,12 +6,14 @@ const router = express.Router();
 let pendingAction = null;
 const pendingLoginTokens = new Map();
 
+// Atomically replace a user's linked badge with a new one (delete old, insert new)
 const relinkBadge = db.transaction((uidHash, userId) =>
 {
 	db.prepare("DELETE FROM badges WHERE user_id = ?").run(userId);
 	db.prepare("INSERT INTO badges (uid_hash, user_id) VALUES (?, ?)").run(uidHash, userId);
 });
 
+// Start a 30s window during which the next scanned badge gets linked to the logged-in user
 router.post("/pairing/start", (req, res) =>
 {
 	if (!req.session.userId)
@@ -41,6 +43,7 @@ router.post("/pairing/start", (req, res) =>
 	res.json({ code });
 });
 
+// Start a 30s window during which the next scanned badge logs someone in
 router.post("/badge-login/start", (req, res) =>
 {
 	if (pendingAction && pendingAction.expiresAt > Date.now())
@@ -64,6 +67,7 @@ router.post("/badge-login/start", (req, res) =>
 	res.json({ ok: true });
 });
 
+// Exchange a one-time login token for a real session
 router.post("/badge-login/confirm", (req, res) =>
 {
 	const { token } = req.body;
@@ -81,6 +85,7 @@ router.post("/badge-login/confirm", (req, res) =>
 	res.json({ message: "Logged in" });
 });
 
+// Attach the next incoming WebSocket connection to whichever badge action is pending
 function attachWebSocket(wss)
 {
 	wss.on("connection", (socket) =>
@@ -90,6 +95,7 @@ function attachWebSocket(wss)
 	});
 }
 
+// Handle a badge scan from the ESP32: link it to a user (pairing) or log them in (login)
 function handleScan(uid)
 {
 	if (!uid || typeof uid !== "string")

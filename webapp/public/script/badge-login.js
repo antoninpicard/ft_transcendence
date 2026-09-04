@@ -1,3 +1,4 @@
+// Start badge login, open a WebSocket, and confirm the login once a token arrives
 document.getElementById("badge-login-button").addEventListener("click", async () =>
 {
 	const statusEl = document.getElementById("badge-login-status");

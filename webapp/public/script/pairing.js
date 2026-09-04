@@ -1,3 +1,4 @@
+// Start badge pairing, open a WebSocket, and show the live pairing status
 document.getElementById("pair-button").addEventListener("click", async () =>
 {
 	const statusEl = document.getElementById("pairing-status");
