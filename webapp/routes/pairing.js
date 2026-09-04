@@ -85,6 +85,26 @@ router.post("/badge-login/confirm", (req, res) =>
 	res.json({ message: "Logged in" });
 });
 
+// Report whether the logged-in user currently has a badge linked
+router.get("/badge/status", (req, res) =>
+{
+	if (!req.session.userId)
+		return res.status(401).json({ error: "Not logged in" });
+
+	const badge = db.prepare("SELECT id FROM badges WHERE user_id = ?").get(req.session.userId);
+	res.json({ linked: !!badge });
+});
+
+// Remove the logged-in user's badge link, freeing that badge for another account
+router.post("/badge/unlink", (req, res) =>
+{
+	if (!req.session.userId)
+		return res.status(401).json({ error: "Not logged in" });
+
+	db.prepare("DELETE FROM badges WHERE user_id = ?").run(req.session.userId);
+	res.json({ message: "Badge unlinked" });
+});
+
 // Attach the next incoming WebSocket connection to whichever badge action is pending
 function attachWebSocket(wss)
 {
