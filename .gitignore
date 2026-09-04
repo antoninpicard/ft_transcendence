@@ -1,1 +1,3 @@
 firmware/secrets.h
+node_modules/
+infra/

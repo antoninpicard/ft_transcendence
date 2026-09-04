@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+	<head>
+		<meta charset="UTF-8">
+		<title>Connexion</title>
+	</head>
+	<body>
+		<h1>Connexion</h1>
+
+		<form id="login-form">
+			<label for="email">Email</label>
+			<input type="email" id="email" name="email" required>
+			<label for="password">Mot de passe</label>
+			<input type="password" id="password" name="password" required>
+			<button type="submit">Se connecter</button>
+		</form>
+		<p id="error-message"></p>
+		<p><a href="/signup.html">Pas de compte ? S'inscrire</a></p>
+
+		<button id="badge-login-button">Se connecter avec mon badge</button>
+		<p id="badge-login-status"></p>
+
+		<script src="/script/login.js"></script>
+		<script src="/script/badge-login.js"></script>
+</body>
+</html>
