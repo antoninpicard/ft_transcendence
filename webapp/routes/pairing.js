@@ -6,6 +6,12 @@ const router = express.Router();
 let pendingAction = null;
 const pendingLoginTokens = new Map();
 
+const relinkBadge = db.transaction((uidHash, userId) =>
+{
+	db.prepare("DELETE FROM badges WHERE user_id = ?").run(userId);
+	db.prepare("INSERT INTO badges (uid_hash, user_id) VALUES (?, ?)").run(uidHash, userId);
+});
+
 router.post("/pairing/start", (req, res) =>
 {
 	if (!req.session.userId)
@@ -25,6 +31,7 @@ router.post("/pairing/start", (req, res) =>
 	};
 
 	pendingAction = action;
+	console.log("[badge] mode pair started for user", action.userId);
 	setTimeout(() =>
 	{
 		if (pendingAction === action)
@@ -47,6 +54,7 @@ router.post("/badge-login/start", (req, res) =>
 	};
 
 	pendingAction = action;
+	console.log("[badge] mode login started");
 	setTimeout(() =>
 	{
 		if (pendingAction === action)
@@ -66,6 +74,10 @@ router.post("/badge-login/confirm", (req, res) =>
 
 	pendingLoginTokens.delete(token);
 	req.session.userId = entry.userId;
+
+	const user = db.prepare("SELECT email FROM users WHERE id = ?").get(entry.userId);
+	console.log("[badge] connected", user.email);
+
 	res.json({ message: "Logged in" });
 });
 
@@ -90,12 +102,14 @@ function handleScan(uid)
 	const action = pendingAction;
 	let result;
 
+	console.log("[badge] send uid", uid, "for", action.mode);
+
 	if (action.mode === "pair")
 	{
 		result = "paired";
 		try
 		{
-			db.prepare("INSERT INTO badges (uid_hash, user_id) VALUES (?, ?)").run(uidHash, action.userId);
+			relinkBadge(uidHash, action.userId);
 		}
 		catch (err)
 		{
@@ -112,6 +126,7 @@ function handleScan(uid)
 		if (!badge)
 		{
 			result = "unknown-badge";
+			console.log("[badge] uid", uid, "not linked to any account");
 			if (action.socket)
 				action.socket.send(JSON.stringify({ status: result }));
 		}

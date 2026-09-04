@@ -18,7 +18,6 @@ router.post("/hello", checkDeviceToken, (req, res) =>
 router.post("/scan", checkDeviceToken, (req, res) =>
 {
 	const uid = req.body.uid;
-	console.log("Badge scanned, UID:", uid);
 
 	const result = pairing.handleScan(uid);
 	const messages =
