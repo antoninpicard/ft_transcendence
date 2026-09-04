@@ -3,8 +3,12 @@ const crypto = require("crypto");
 const db = require("../../infra/db");
 const router = express.Router();
 
+const ACTION_TTL_MS = 30000;
+const BADGE_LOGIN_START_COOLDOWN_MS = 10000;
+
 let pendingAction = null;
 const pendingLoginTokens = new Map();
+const lastBadgeLoginStart = new Map();
 
 // Atomically replace a user's linked badge with a new one (delete old, insert new)
 const relinkBadge = db.transaction((uidHash, userId) =>
@@ -12,6 +16,23 @@ const relinkBadge = db.transaction((uidHash, userId) =>
 	db.prepare("DELETE FROM badges WHERE user_id = ?").run(userId);
 	db.prepare("INSERT INTO badges (uid_hash, user_id) VALUES (?, ?)").run(uidHash, userId);
 });
+
+// Set a new pending badge action (with its own code and expiry) as the single global slot
+function startAction(action)
+{
+	action.code = crypto.randomBytes(3).toString("hex");
+	action.expiresAt = Date.now() + ACTION_TTL_MS;
+	action.socket = null;
+
+	pendingAction = action;
+	setTimeout(() =>
+	{
+		if (pendingAction === action)
+			pendingAction = null;
+	}, ACTION_TTL_MS);
+
+	return action;
+}
 
 // Start a 30s window during which the next scanned badge gets linked to the logged-in user
 router.post("/pairing/start", (req, res) =>
@@ -22,52 +43,31 @@ router.post("/pairing/start", (req, res) =>
 	if (pendingAction && pendingAction.expiresAt > Date.now())
 		return res.status(409).json({ error: "A badge action is already in progress" });
 
-	const code = crypto.randomBytes(3).toString("hex");
-	const action =
-	{
-		mode: "pair",
-		userId: req.session.userId,
-		code,
-		expiresAt: Date.now() + 30000,
-		socket: null
-	};
-
-	pendingAction = action;
+	const action = startAction({ mode: "pair", userId: req.session.userId });
 	console.log("[badge] mode pair started for user", action.userId);
-	setTimeout(() =>
-	{
-		if (pendingAction === action)
-			pendingAction = null;
-	}, 30000);
 
-	res.json({ code });
+	res.json({ code: action.code });
 });
 
 // Start a 30s window during which the next scanned badge logs someone in
 router.post("/badge-login/start", (req, res) =>
 {
+	const lastStart = lastBadgeLoginStart.get(req.ip);
+	if (lastStart && Date.now() - lastStart < BADGE_LOGIN_START_COOLDOWN_MS)
+		return res.status(429).json({ error: "Too many requests, try again shortly" });
+
 	if (pendingAction && pendingAction.expiresAt > Date.now())
 		return res.status(409).json({ error: "A badge action is already in progress" });
 
-	const action =
-	{
-		mode: "login",
-		expiresAt: Date.now() + 30000,
-		socket: null
-	};
+	lastBadgeLoginStart.set(req.ip, Date.now());
 
-	pendingAction = action;
+	const action = startAction({ mode: "login" });
 	console.log("[badge] mode login started");
-	setTimeout(() =>
-	{
-		if (pendingAction === action)
-			pendingAction = null;
-	}, 30000);
 
-	res.json({ ok: true });
+	res.json({ code: action.code });
 });
 
-// Exchange a one-time login token for a real session
+// Exchange a one-time login token for a real session (regenerating the session id first)
 router.post("/badge-login/confirm", (req, res) =>
 {
 	const { token } = req.body;
@@ -77,12 +77,23 @@ router.post("/badge-login/confirm", (req, res) =>
 		return res.status(401).json({ error: "Invalid or expired token" });
 
 	pendingLoginTokens.delete(token);
-	req.session.userId = entry.userId;
 
-	const user = db.prepare("SELECT email FROM users WHERE id = ?").get(entry.userId);
-	console.log("[badge] connected", user.email);
+	req.session.regenerate((err) =>
+	{
+		if (err)
+			return res.status(500).json({ error: "Session error" });
 
-	res.json({ message: "Logged in" });
+		req.session.userId = entry.userId;
+		req.session.save((err2) =>
+		{
+			if (err2)
+				return res.status(500).json({ error: "Session error" });
+
+			const user = db.prepare("SELECT email FROM users WHERE id = ?").get(entry.userId);
+			console.log("[badge] connected", user.email);
+			res.json({ message: "Logged in" });
+		});
+	});
 });
 
 // Report whether the logged-in user currently has a badge linked
@@ -105,13 +116,28 @@ router.post("/badge/unlink", (req, res) =>
 	res.json({ message: "Badge unlinked" });
 });
 
-// Attach the next incoming WebSocket connection to whichever badge action is pending
+// Attach a WebSocket to the pending action only once it proves it knows the action's code
 function attachWebSocket(wss)
 {
 	wss.on("connection", (socket) =>
 	{
-		if (pendingAction && !pendingAction.socket)
-			pendingAction.socket = socket;
+		socket.once("message", (raw) =>
+		{
+			let code;
+			try
+			{
+				code = JSON.parse(raw.toString()).code;
+			}
+			catch (err)
+			{
+				return socket.close();
+			}
+
+			if (pendingAction && !pendingAction.socket && pendingAction.code === code)
+				pendingAction.socket = socket;
+			else
+				socket.close();
+		});
 	});
 }
 

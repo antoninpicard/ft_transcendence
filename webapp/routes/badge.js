@@ -1,12 +1,23 @@
 const express = require("express");
+const crypto = require("crypto");
 const pairing = require("./pairing");
 const router = express.Router();
+
+if (!process.env.DEVICE_TOKEN)
+	throw new Error("DEVICE_TOKEN must be set in the environment");
 
 // Reject requests that don't carry the ESP32's shared device token
 function checkDeviceToken(req, res, next)
 {
-	if (req.headers["x-device-token"] !== process.env.DEVICE_TOKEN)
+	const header = req.headers["x-device-token"];
+	const expected = process.env.DEVICE_TOKEN;
+
+	if (typeof header !== "string" || header.length !== expected.length)
 		return res.status(401).json({ error: "Invalid device token" });
+
+	if (!crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected)))
+		return res.status(401).json({ error: "Invalid device token" });
+
 	next();
 }
 

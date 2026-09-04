@@ -29,6 +29,4 @@ document.getElementById("login-form").addEventListener("submit", async (event) =
 	}
 
 	window.location.href = "/home.html";
-
-	console.log("Connecté !", data);
 });

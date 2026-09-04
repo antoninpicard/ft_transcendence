@@ -24,18 +24,25 @@ refreshBadgeStatus();
 // Start badge pairing, open a WebSocket, and show the live pairing status
 pairButton.addEventListener("click", async () =>
 {
+	const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+	const socket = new WebSocket(wsProtocol + window.location.host);
+
+	// Open the socket before starting the action, so there's no gap where a scan could arrive unheard
+	await new Promise((resolve) => socket.addEventListener("open", resolve, { once: true }));
+
 	const response = await fetch("/api/pairing/start", { method: "POST" });
 	const data = await response.json();
 
 	if (!response.ok)
 	{
 		pairingStatusEl.textContent = data.error;
+		socket.close();
 		return;
 	}
 
+	// Prove to the server this socket belongs to the action we just started
+	socket.send(JSON.stringify({ code: data.code }));
 	pairingStatusEl.textContent = "Scanne ton badge dans les 30 secondes (code: " + data.code + ")";
-
-	const socket = new WebSocket("ws://" + window.location.host);
 
 	socket.addEventListener("message", (event) =>
 	{

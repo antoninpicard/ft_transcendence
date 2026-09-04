@@ -3,18 +3,24 @@ document.getElementById("badge-login-button").addEventListener("click", async ()
 {
 	const statusEl = document.getElementById("badge-login-status");
 
+	const socket = new WebSocket("ws://" + window.location.host);
+
+	// Open the socket before starting the action, so there's no gap where a scan could arrive unheard
+	await new Promise((resolve) => socket.addEventListener("open", resolve, { once: true }));
+
 	const response = await fetch("/api/badge-login/start", { method: "POST" });
 	const data = await response.json();
 
 	if (!response.ok)
 	{
 		statusEl.textContent = data.error;
+		socket.close();
 		return;
 	}
 
+	// Prove to the server this socket belongs to the action we just started
+	socket.send(JSON.stringify({ code: data.code }));
 	statusEl.textContent = "Scanne ton badge dans les 30 secondes...";
-
-	const socket = new WebSocket("ws://" + window.location.host);
 
 	socket.addEventListener("message", async (event) =>
 	{

@@ -27,7 +27,9 @@ router.post("/signup", async (req, res) =>
 		res.status(201).json({ message: "Account created" });
 	} catch (err) {
 		console.log(err);
-		res.status(409).json({ error: "Email already in use" });
+		if (err.code === "SQLITE_CONSTRAINT_UNIQUE" || err.code === "SQLITE_CONSTRAINT_PRIMARYKEY")
+			return res.status(409).json({ error: "Email already in use" });
+		res.status(500).json({ error: "Internal server error" });
 	}
 });
 
@@ -47,8 +49,19 @@ router.post("/login", async (req, res) =>
 	if (!passwordMatches)
 		return res.status(401).json({ error: "Invalid email or password" });
 
-	req.session.userId = user.id;
-	res.json({ message: "Logged in" });
+	req.session.regenerate((err) =>
+	{
+		if (err)
+			return res.status(500).json({ error: "Session error" });
+
+		req.session.userId = user.id;
+		req.session.save((err2) =>
+		{
+			if (err2)
+				return res.status(500).json({ error: "Session error" });
+			res.json({ message: "Logged in" });
+		});
+	});
 });
 
 // Return the currently logged-in user's info, or 401 if not logged in

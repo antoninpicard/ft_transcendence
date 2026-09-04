@@ -34,6 +34,4 @@ document.getElementById("signup-form").addEventListener("submit", async (event) 
 	}
 
 	window.location.href = "/login.html";
-
-	console.log("Connecté !", data);
 });
