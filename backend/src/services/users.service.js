@@ -1,0 +1,81 @@
+import { query, queryOne } from '../db/pool.js';
+import { isUniqueViolation } from '../db/errors.js';
+import { AppError } from '../utils/AppError.js';
+
+const COLUMNS = 'id, username, email, created_at AS "createdAt", updated_at AS "updatedAt"';
+
+const UPDATABLE = Object.freeze({
+  username: 'username',
+  email: 'email',
+});
+
+export async function listUsers({ limit, offset }) {
+  const { rows } = await query(
+    `SELECT ${COLUMNS}, count(*) OVER () AS "totalCount"
+       FROM users
+      ORDER BY created_at, id
+      LIMIT $1 OFFSET $2`,
+    [limit, offset],
+  );
+
+  const total = rows.length > 0 ? Number(rows[0].totalCount) : await countUsers();
+  return { total, items: rows.map(({ totalCount, ...user }) => user) };
+}
+
+async function countUsers() {
+  const row = await queryOne('SELECT count(*) AS count FROM users');
+  return Number(row.count);
+}
+
+export async function getUser(id) {
+  const user = await queryOne(`SELECT ${COLUMNS} FROM users WHERE id = $1`, [id]);
+  if (!user) throw AppError.notFound(`Utilisateur ${id} introuvable`);
+  return user;
+}
+
+export async function createUser({ username, email }) {
+  try {
+    return await queryOne(
+      `INSERT INTO users (username, email) VALUES ($1, $2) RETURNING ${COLUMNS}`,
+      [username, email],
+    );
+  } catch (err) {
+    throw toConflict(err) ?? err;
+  }
+}
+
+export async function updateUser(id, patch) {
+  const entries = Object.entries(patch).filter(([field]) => field in UPDATABLE);
+  if (entries.length === 0) return getUser(id);
+
+  const assignments = entries
+    .map(([field], i) => `${UPDATABLE[field]} = $${i + 2}`)
+    .join(', ');
+  const values = entries.map(([, value]) => value);
+
+  try {
+    const user = await queryOne(
+      `UPDATE users SET ${assignments} WHERE id = $1 RETURNING ${COLUMNS}`,
+      [id, ...values],
+    );
+    if (!user) throw AppError.notFound(`Utilisateur ${id} introuvable`);
+    return user;
+  } catch (err) {
+    throw toConflict(err) ?? err;
+  }
+}
+
+export async function deleteUser(id) {
+  const { rowCount } = await query('DELETE FROM users WHERE id = $1', [id]);
+  if (rowCount === 0) throw AppError.notFound(`Utilisateur ${id} introuvable`);
+}
+
+function toConflict(err) {
+  if (isUniqueViolation(err, 'users_username_key')) {
+    return AppError.conflict("Ce nom d'utilisateur est déjà pris");
+  }
+  if (isUniqueViolation(err, 'users_email_key')) {
+    return AppError.conflict('Cet email est déjà utilisé');
+  }
+  return null;
+}

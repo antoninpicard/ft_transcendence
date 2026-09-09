@@ -1,1 +1,13 @@
 firmware/secrets.h
+
+# Node / API
+node_modules/
+.env
+*.log
+
+# IDE / OS
+.idea/
+.DS_Store
+
+# WebStorm HTTP Client — secrets (tokens, API keys)
+http-client.private.env.json

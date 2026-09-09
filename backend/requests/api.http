@@ -1,0 +1,75 @@
+### Health — 200 if the database answers, 503 otherwise
+GET {{host}}/api/health
+
+### List users — paginated
+GET {{host}}/api/users?limit=20&offset=0
+
+### Create a user — 201, stores the new id for the requests below
+POST {{host}}/api/users
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "lucas@42.fr"
+}
+
+> {%
+    client.test("created", function () {
+        client.assert(response.status === 201, "expected 201, got " + response.status);
+    });
+    if (response.status === 201) {
+        client.global.set("userId", response.body.id);
+    }
+%}
+
+### Get one user
+GET {{host}}/api/users/{{userId}}
+
+### Partial update
+PATCH {{host}}/api/users/{{userId}}
+Content-Type: application/json
+
+{
+  "username": "lucas42"
+}
+
+### Delete — 204, no body
+DELETE {{host}}/api/users/{{userId}}
+
+
+###############################################################################
+# Error paths — every one of these must fail in the documented way
+###############################################################################
+
+### 404 — unknown route
+GET {{host}}/api/nope
+
+### 400 — username too short, invalid email
+POST {{host}}/api/users
+Content-Type: application/json
+
+{
+  "username": "ab",
+  "email": "not-an-email"
+}
+
+### 400 — id is not a uuid
+GET {{host}}/api/users/123
+
+### 400 — limit above the allowed maximum
+GET {{host}}/api/users?limit=999
+
+### 400 — malformed JSON (must NOT be a 500)
+POST {{host}}/api/users
+Content-Type: application/json
+
+{oops
+
+### 409 — username already taken (run the create request twice)
+POST {{host}}/api/users
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "someone.else@42.fr"
+}
