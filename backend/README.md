@@ -157,7 +157,8 @@ src/
 └── utils/AppError.js      # business errors carrying an HTTP status
 
 tests/
-└── http.test.js           # node --test against createApp(), no network, no DB
+├── unit/http.test.js      # node --test against createApp(), no network, no DB
+└── db/*.db.test.js        # node --test against a real Postgres, run with `npm run test:db`
 ```
 
 `app.js` exports `createApp()` — a factory — instead of starting a server.
@@ -256,7 +257,7 @@ The command is idempotent: run it as often as you like.
 Create the next numbered file and run the command again:
 
 ```sql
--- src/db/migrations/002_create_matches.sql
+-- src/db/migrations/003_create_matches.sql
 CREATE TABLE matches (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   player1_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -271,7 +272,7 @@ CREATE INDEX matches_player1_idx ON matches (player1_id);
 CREATE INDEX matches_player2_idx ON matches (player2_id);
 ```
 
-Use zero-padded numbers (`002`, not `2`): ordering is alphabetical, so `10_`
+Use zero-padded numbers (`003`, not `3`): ordering is alphabetical, so `10_`
 would otherwise sort before `2_`.
 
 > **Never edit a migration that has already been applied.** It is recorded in
@@ -370,6 +371,8 @@ the logs.
 | `201` | resource created (with a `Location` header) |
 | `204` | successful delete, no body |
 | `400` | validation failed, or malformed JSON |
+| `401` | missing or invalid session cookie on a route that requires one |
+| `403` | authenticated, but not the resource owner |
 | `404` | unknown route, or missing resource |
 | `405` | known path, unsupported method — carries an `Allow` header |
 | `409` | unique constraint violated |
@@ -415,8 +418,14 @@ export const userBody = z.object({
 });
 
 // src/routes/users.routes.js
-usersRouter.post('/', validate({ body: userBody }), controller.create);
-usersRouter.patch('/:id', validate({ params: idParams, body: userPatchBody }), controller.update);
+usersRouter.get('/:id', validate({ params: idParams }), controller.getOne);
+usersRouter.patch(
+  '/:id',
+  validate({ params: idParams, body: userPatchBody }),
+  requireAuth,
+  requireSelf,
+  controller.update,
+);
 ```
 
 `userPatchBody` is `userBody.partial()`: the same rules with every field
@@ -453,7 +462,7 @@ Paginated list.
 | Query | Type | Default | Range |
 |---|---|---|---|
 | `limit` | integer | `20` | 1–100 |
-| `offset` | integer | `0` | >= 0 |
+| `offset` | integer | `0` | 0–10 000 |
 
 ```json
 {
@@ -473,8 +482,8 @@ query, so a page and its total cost **one** round-trip instead of two.
 
 ### `POST /auth/register`
 
-Creates the account and opens a session. Responds `201` with the created user
-and a session cookie.
+Creates the account and opens a session. Responds `201` with the created user,
+a `Location: /api/users/:id` header, and a session cookie.
 
 ```json
 { "username": "lucas", "email": "lucas@42.fr", "password": "SecurePass123" }
@@ -518,7 +527,8 @@ resource, `404` if it does not exist, `409` on a uniqueness conflict.
 
 ### `DELETE /users/:id`
 
-Returns `204` with no body, or `404`.
+Returns `204` with no body. `401` if unauthenticated, `403` if not the account
+owner, `404` if the resource does not exist.
 
 ---
 
@@ -526,7 +536,7 @@ Returns `204` with no body, or `404`.
 
 Four files and one line, always in this order. Copy `users` and rename.
 
-**1. Migration** — `src/db/migrations/002_create_matches.sql`, then
+**1. Migration** — `src/db/migrations/003_create_matches.sql`, then
 `npm run migrate`.
 
 **2. Service** — `src/services/matches.service.js`. Business rules and SQL. No
@@ -581,30 +591,37 @@ apiRouter.use('/matches', matchesRouter);
 
 ```bash
 npm test
+npm run test:db
 ```
 
-`tests/http.test.js` uses the built-in `node:test` runner and global `fetch` —
-no extra dependency. It boots `createApp()` on an ephemeral port and exercises
-the full HTTP chain: routing, validation, 404 and 405 handling, CORS and cache
-headers, and error translation. **It needs no database**, because none of the
-covered paths reach one — the `npm test` script passes a dummy `DATABASE_URL`
-inline and reads no `.env` file at all.
+`tests/unit/http.test.js` uses the built-in `node:test` runner and global
+`fetch` — no extra dependency. It boots `createApp()` on an ephemeral port and
+exercises the full HTTP chain: routing, validation, 404 and 405 handling, CORS
+and cache headers, and error translation. **It needs no database**, because
+none of the covered paths reach one — the `npm test` script passes a dummy
+`DATABASE_URL` inline and reads no `.env` file at all. This is the property
+`npm test` (and only `npm test`) has: `npm run test:db`, below, does need one.
 
 Two cases are asserted directly against `errorHandler` rather than over HTTP:
 triggering a real `500` would depend on the database being down, so the result
 would change from one machine to the next.
 
-Integration tests that do touch SQL are still missing, and that is the real gap
-in the suite: the SQL layer is the part you will defend at evaluation. When you
-add them, point them at a dedicated database — never the development one — and
-create it explicitly rather than assuming it exists.
+`tests/db/*.db.test.js` are the integration tests that do touch SQL:
+registration, login, logout, `me`, session lifecycle, ownership on `PATCH` and
+`DELETE`, and the public/private user projections. Run them with
+`npm run test:db` against a running database (`npm run db:up`, then
+`npm run migrate`). Each test creates its own accounts with random usernames
+and deletes them on exit, so the suite never needs an empty database and never
+leaves one dirty — point it at the development database without fear, but
+never at production.
 
 ### Manual requests
 
 `requests/api.http` is a ready-made collection for the JetBrains HTTP Client
 (open it in WebStorm and click the green arrow next to any request). It covers
-every endpoint plus the documented failure modes, and the `POST /users` request
-stores the created id so the following requests reuse it.
+registration, login, `me`, the public directory, an owner `PATCH`, logout, and
+the documented failure modes; the register request stores the created id and
+session cookie so the following requests reuse them.
 
 Pick the environment (`dev` or `docker`) from the selector at the top right;
 values live in `requests/http-client.env.json`. Secrets belong in

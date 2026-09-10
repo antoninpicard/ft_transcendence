@@ -1,40 +1,93 @@
 ### Health — 200 if the database answers, 503 otherwise
 GET {{host}}/api/health
 
-### List users — paginated
-GET {{host}}/api/users?limit=20&offset=0
-
-### Create a user — 201, stores the new id for the requests below
-POST {{host}}/api/users
+### Register — 201, opens a session, stores the id and cookie for the requests below
+POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
   "username": "lucas",
-  "email": "lucas@42.fr"
+  "email": "lucas@42.fr",
+  "password": "SecurePass123"
 }
 
 > {%
-    client.test("created", function () {
+    client.test("registered", function () {
         client.assert(response.status === 201, "expected 201, got " + response.status);
     });
     if (response.status === 201) {
         client.global.set("userId", response.body.id);
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
     }
 %}
 
-### Get one user
-GET {{host}}/api/users/{{userId}}
-
-### Partial update
-PATCH {{host}}/api/users/{{userId}}
+### Login — 200, opens a fresh session, refreshes the stored cookie
+POST {{host}}/api/auth/login
 Content-Type: application/json
 
 {
-  "username": "lucas42"
+  "identifier": "lucas",
+  "password": "SecurePass123"
 }
 
-### Delete — 204, no body
-DELETE {{host}}/api/users/{{userId}}
+> {%
+    client.test("logged in", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+    if (response.status === 200) {
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Current session — the authenticated user, email included
+GET {{host}}/api/auth/me
+Cookie: {{sessionCookie}}
+
+### Public directory — paginated, no email
+GET {{host}}/api/users?limit=20&offset=0
+
+### Get one user — public projection, no email
+GET {{host}}/api/users/{{userId}}
+
+### Owner update — only the account owner may PATCH
+PATCH {{host}}/api/users/{{userId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "email": "lucas.updated@42.fr"
+}
+
+> {%
+    client.test("updated", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### 403 — PATCH targeting someone else's id, even though the session is valid
+PATCH {{host}}/api/users/00000000-0000-4000-8000-000000000000
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "username": "pirate"
+}
+
+> {%
+    client.test("forbidden", function () {
+        client.assert(response.status === 403, "expected 403, got " + response.status);
+    });
+%}
+
+### Logout — 204, no body, revokes the session above
+POST {{host}}/api/auth/logout
+Cookie: {{sessionCookie}}
+
+> {%
+    client.test("logged out", function () {
+        client.assert(response.status === 204, "expected 204, got " + response.status);
+    });
+%}
 
 
 ###############################################################################
@@ -44,13 +97,17 @@ DELETE {{host}}/api/users/{{userId}}
 ### 404 — unknown route
 GET {{host}}/api/nope
 
-### 400 — username too short, invalid email
+### 405 — POST /users is not a route; accounts are only created through /auth/register
 POST {{host}}/api/users
+
+### 400 — username too short, invalid email, password too short
+POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
   "username": "ab",
-  "email": "not-an-email"
+  "email": "not-an-email",
+  "password": "short"
 }
 
 ### 400 — id is not a uuid
@@ -60,16 +117,37 @@ GET {{host}}/api/users/123
 GET {{host}}/api/users?limit=999
 
 ### 400 — malformed JSON (must NOT be a 500)
-POST {{host}}/api/users
+POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {oops
 
-### 409 — username already taken (run the create request twice)
-POST {{host}}/api/users
+### 401 — wrong password
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "lucas",
+  "password": "wrong-password"
+}
+
+### 401 — me without a session cookie
+GET {{host}}/api/auth/me
+
+### 401 — PATCH without a session cookie
+PATCH {{host}}/api/users/{{userId}}
+Content-Type: application/json
+
+{
+  "username": "anonymous-edit"
+}
+
+### 409 — username already taken (run the register request above twice)
+POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
   "username": "lucas",
-  "email": "someone.else@42.fr"
+  "email": "someone.else@42.fr",
+  "password": "SecurePass123"
 }
