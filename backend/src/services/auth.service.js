@@ -7,10 +7,12 @@ import { PRIVATE_COLUMNS, toConflict } from './users.service.js';
 const HASH_OPTIONS = { type: argon2.argon2id };
 const INVALID_CREDENTIALS = 'Identifiants invalides';
 
-let decoyHash = null;
+let decoyHash;
 
-function decoy() {
-  decoyHash ??= argon2.hash(randomBytes(32).toString('hex'), HASH_OPTIONS);
+async function decoy() {
+  if (decoyHash === undefined) {
+    decoyHash = await argon2.hash(randomBytes(32).toString('hex'), HASH_OPTIONS);
+  }
   return decoyHash;
 }
 

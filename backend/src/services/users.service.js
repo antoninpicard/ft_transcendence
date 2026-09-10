@@ -44,7 +44,7 @@ async function findUser(id, columns) {
 }
 
 export async function updateUser(id, patch) {
-  const entries = Object.entries(patch).filter(([field]) => field in UPDATABLE);
+  const entries = Object.entries(patch).filter(([field]) => Object.hasOwn(UPDATABLE, field));
   if (entries.length === 0) return getPrivateUser(id);
 
   const assignments = entries

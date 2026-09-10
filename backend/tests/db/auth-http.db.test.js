@@ -106,6 +106,11 @@ describe('session', () => {
     assert.equal(res.status, 401);
   });
 
+  it('refuse un cookie JSON préfixé sans planter', async () => {
+    const res = await fetch(`${base}/api/auth/me`, { headers: { cookie: 'sid=j%3A%7B%7D' } });
+    assert.equal(res.status, 401);
+  });
+
   it('invalide la session à la déconnexion', async () => {
     const { cookie } = await signUp();
     const out = await json('/api/auth/logout', {}, cookie);
@@ -148,10 +153,69 @@ describe('propriété du compte', () => {
     assert.equal(res.status, 403);
   });
 
+  it('laisse modifier son propre compte même avec un id en majuscules', async () => {
+    const { user, cookie } = await signUp();
+    const me = await (await fetch(`${base}/api/auth/me`, { headers: { cookie } })).json();
+
+    const res = await fetch(`${base}/api/users/${me.id.toUpperCase()}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ username: `${user.username}-up` }),
+    });
+    created.push(`${user.username}-up`);
+    assert.equal(res.status, 200);
+  });
+
   it('refuse de supprimer sans session', async () => {
     const { cookie } = await signUp();
     const me = await (await fetch(`${base}/api/auth/me`, { headers: { cookie } })).json();
     const res = await fetch(`${base}/api/users/${me.id}`, { method: 'DELETE' });
     assert.equal(res.status, 401);
+  });
+
+  it('refuse de supprimer le compte d un autre', async () => {
+    const other = await signUp();
+    const mine = await signUp();
+    const target = await (await fetch(`${base}/api/auth/me`, { headers: { cookie: other.cookie } })).json();
+
+    const res = await fetch(`${base}/api/users/${target.id}`, {
+      method: 'DELETE',
+      headers: { cookie: mine.cookie },
+    });
+    assert.equal(res.status, 403);
+  });
+
+  it('supprime son propre compte et révoque ses sessions', async () => {
+    const { cookie } = await signUp();
+    const me = await (await fetch(`${base}/api/auth/me`, { headers: { cookie } })).json();
+
+    const res = await fetch(`${base}/api/users/${me.id}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    assert.equal(res.status, 204);
+
+    const after = await fetch(`${base}/api/auth/me`, { headers: { cookie } });
+    assert.equal(after.status, 401);
+  });
+});
+
+describe('méthodes non gérées', () => {
+  it('refuse POST /users avec 405', async () => {
+    const res = await fetch(`${base}/api/users`, { method: 'POST' });
+    assert.equal(res.status, 405);
+  });
+});
+
+describe('projection publique HTTP', () => {
+  it("n'expose pas l'email sur GET /users/:id", async () => {
+    const { user, cookie } = await signUp();
+    const me = await (await fetch(`${base}/api/auth/me`, { headers: { cookie } })).json();
+
+    const res = await fetch(`${base}/api/users/${me.id}`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.username, user.username);
+    assert.equal('email' in body, false);
   });
 });

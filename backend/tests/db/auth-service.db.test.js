@@ -1,5 +1,6 @@
 import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import argon2 from 'argon2';
 import { queryOne, closePool } from '../../src/db/pool.js';
 import { uniqueUser, cleanupUsers } from './helpers.js';
 import { register, verifyCredentials } from '../../src/services/auth.service.js';
@@ -18,6 +19,20 @@ after(async () => {
   await closePool();
 });
 
+describe('leurre anti-énumération', () => {
+  it('ne reste pas bloqué après un échec du hachage de leurre', async () => {
+    const originalHash = argon2.hash;
+    argon2.hash = () => Promise.reject(new Error('échec simulé du hachage'));
+
+    await assert.rejects(verifyCredentials('personne-1@example.test', 'peu-importe'));
+
+    argon2.hash = originalHash;
+
+    const err = await verifyCredentials('personne-2@example.test', 'peu-importe').catch((e) => e);
+    assert.equal(err.statusCode, 401);
+  });
+});
+
 describe('service d authentification', () => {
   it('ne renvoie jamais le hash', async () => {
     const user = await registered();
@@ -31,6 +46,19 @@ describe('service d authentification', () => {
     const row = await queryOne('SELECT password_hash FROM users WHERE username = $1', [user.username]);
     assert.equal(row.password_hash.includes(user.password), false);
     assert.match(row.password_hash, /^\$argon2id\$/);
+  });
+
+  it('sale le hash : deux comptes avec le même mot de passe ont des hachages différents', async () => {
+    const password = 'motdepasse-de-test';
+    const a = uniqueUser();
+    const b = uniqueUser();
+    created.push(a.username, b.username);
+    await register({ ...a, password });
+    await register({ ...b, password });
+
+    const rowA = await queryOne('SELECT password_hash FROM users WHERE username = $1', [a.username]);
+    const rowB = await queryOne('SELECT password_hash FROM users WHERE username = $1', [b.username]);
+    assert.notEqual(rowA.password_hash, rowB.password_hash);
   });
 
   it('accepte la connexion par email', async () => {

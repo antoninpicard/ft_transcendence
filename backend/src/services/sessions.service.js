@@ -20,7 +20,7 @@ export async function createSession(userId) {
 }
 
 export async function resolveSession(token) {
-  if (!token) return null;
+  if (typeof token !== 'string' || !token) return null;
 
   const session = await queryOne(
     `SELECT id, user_id AS "userId", expires_at AS "expiresAt"
@@ -39,6 +39,6 @@ export async function resolveSession(token) {
 }
 
 export async function revokeSession(token) {
-  if (!token) return;
+  if (typeof token !== 'string' || !token) return;
   await query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
 }

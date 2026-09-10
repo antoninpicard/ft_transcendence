@@ -4,7 +4,7 @@ export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
-export const idParams = z.object({ id: z.uuid() });
+export const idParams = z.object({ id: z.uuid().toLowerCase() });
 
 export const userBody = z.object({
   username: z.string().trim().min(USERNAME_MIN).max(USERNAME_MAX).regex(USERNAME_PATTERN),

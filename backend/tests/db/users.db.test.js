@@ -2,7 +2,7 @@ import { after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { queryOne, closePool } from '../../src/db/pool.js';
 import { uniqueUser, cleanupUsers } from './helpers.js';
-import { listUsers, getPublicUser, getPrivateUser } from '../../src/services/users.service.js';
+import { listUsers, getPublicUser, getPrivateUser, updateUser } from '../../src/services/users.service.js';
 
 const created = [];
 
@@ -46,5 +46,14 @@ describe('projections utilisateur', () => {
     const found = await getPrivateUser(user.id);
     assert.equal(found.email, user.email);
     assert.equal('passwordHash' in found, false);
+  });
+});
+
+describe('mise à jour utilisateur', () => {
+  it("ignore les clés héritées du prototype comme 'constructor'", async () => {
+    const user = await insertUser();
+    const result = await updateUser(user.id, { constructor: "'; DROP TABLE users; --" });
+    assert.equal(result.username, user.username);
+    assert.equal(result.email, user.email);
   });
 });
