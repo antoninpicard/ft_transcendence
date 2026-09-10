@@ -462,9 +462,7 @@ Paginated list.
     {
       "id": "3f2b…",
       "username": "lucas",
-      "email": "lucas@42.fr",
-      "createdAt": "2026-09-03T01:32:11.114Z",
-      "updatedAt": "2026-09-03T01:32:11.114Z"
+      "createdAt": "2026-09-03T01:32:11.114Z"
     }
   ]
 }
