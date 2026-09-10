@@ -6,7 +6,7 @@ export async function list(req, res) {
 }
 
 export async function getOne(req, res) {
-  res.json(await usersService.getUser(req.params.id));
+  res.json(await usersService.getPublicUser(req.params.id));
 }
 
 export async function create(req, res) {
