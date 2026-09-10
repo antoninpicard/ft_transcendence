@@ -1,8 +1,8 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../src/app.js';
-import { closePool } from '../src/db/pool.js';
-import { errorHandler } from '../src/middlewares/errorHandler.js';
+import { createApp } from '../../src/app.js';
+import { closePool } from '../../src/db/pool.js';
+import { errorHandler } from '../../src/middlewares/errorHandler.js';
 
 let server;
 let base;

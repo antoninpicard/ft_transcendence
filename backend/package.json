@@ -10,12 +10,15 @@
     "db:up": "docker compose -f ../docker-compose.yml up -d db",
     "db:down": "docker compose -f ../docker-compose.yml down",
     "db:reset": "node --env-file-if-exists=../.env src/db/reset.js",
-    "test": "NODE_ENV=test DATABASE_URL=postgresql://unused@127.0.0.1:5432/unused node --test"
+    "test": "NODE_ENV=test DATABASE_URL=postgresql://unused@127.0.0.1:5432/unused node --test 'tests/unit/**/*.test.js'",
+    "test:db": "NODE_ENV=test node --env-file=../.env --test 'tests/db/**/*.test.js'"
   },
   "author": "",
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
