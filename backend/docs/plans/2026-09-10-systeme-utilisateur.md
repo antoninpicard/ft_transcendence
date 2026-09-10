@@ -272,6 +272,7 @@ describe('sessions', () => {
   });
 
   it('refuse et supprime une session expirée', async () => {
+    await query('DELETE FROM sessions WHERE user_id = $1', [userId]);
     const { token } = await createSession(userId);
     await query(
       "UPDATE sessions SET expires_at = now() - interval '1 second' WHERE user_id = $1",

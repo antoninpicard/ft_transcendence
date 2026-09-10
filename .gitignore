@@ -11,3 +11,6 @@ node_modules/
 
 # WebStorm HTTP Client — secrets (tokens, API keys)
 http-client.private.env.json
+
+# Superpowers — atelier de travail des plans
+.superpowers/
