@@ -36,7 +36,7 @@ qui est décrit ici.
 | Mécanisme de session | Cookie opaque, session en base | La déconnexion supprime réellement l'accès. Rien à stocker côté JS, donc rien à voler par XSS. Pas de gestion d'expiration côté client. |
 | Emplacement des routes | `/api/auth/*` dédié | Sépare « qui je suis » de la ressource `users`, et évite la collision avec `/api/users/:id`. |
 | Hachage | argon2id | Gagnant du Password Hashing Competition. Vérifié : le paquet embarque des binaires précompilés pour linux-x64, donc `npm install` ne compile rien et ne réclame ni node-gyp ni python. |
-| Identifiant de connexion | Email + mot de passe | L'email est unique et sans ambiguïté. Accepter aussi le pseudo serait un ajout d'une ligne dans le service. |
+| Identifiant de connexion | Email **ou** pseudo | Un champ `identifier` unique côté client, résolu par `WHERE email = $1 OR username = $1`. Les deux colonnes sont en `citext`, donc la casse n'a pas d'importance. |
 
 ## Modèle de données — migration `002_add_auth.sql`
 
@@ -94,7 +94,7 @@ volume ne le justifie pas.
 | Route | Accès | Réponse |
 |---|---|---|
 | `POST /api/auth/register` | public | 201 + cookie. 409 si pseudo ou email pris, 400 si validation |
-| `POST /api/auth/login` | public | 200 + cookie. 401 sinon |
+| `POST /api/auth/login` | public | 200 + cookie. 401 sinon. Corps : `{ identifier, password }`, où `identifier` est un email ou un pseudo |
 | `POST /api/auth/logout` | connecté | 204, idempotent |
 | `GET /api/auth/me` | connecté | 200 avec l'email. 401 sinon |
 | `GET /api/users` | public | annuaire sans emails |
@@ -112,10 +112,17 @@ reconnecter juste après s'être inscrit n'apporte rien.
 
 ## Sécurité
 
-**Pas d'énumération de comptes.** Email inconnu et mot de passe faux renvoient
-le même 401 et le même message. Quand l'email n'existe pas, le service vérifie
-malgré tout le mot de passe contre un hash factice : sans cela, la différence
-de temps de réponse entre les deux cas révèle quels emails sont enregistrés.
+**Pas d'énumération de comptes.** Identifiant inconnu et mot de passe faux
+renvoient le même 401 et le même message. Quand l'identifiant n'existe pas, le
+service vérifie malgré tout le mot de passe contre un hash factice : sans cela,
+la différence de temps de réponse entre les deux cas révèle quels comptes sont
+enregistrés.
+
+**Aucune collision possible entre les deux identifiants.** `USERNAME_PATTERN`
+n'autorise que `[a-zA-Z0-9_-]`, donc un pseudo ne peut pas contenir d'arobase
+et ne peut pas ressembler à l'email d'un autre. Un `OR` sur les deux colonnes
+ne peut donc pas résoudre vers un compte inattendu. Si ce motif venait à
+s'élargir, cette garantie tomberait et la résolution devrait être scindée.
 
 **Le hash ne peut pas fuiter par inadvertance.** `password_hash` reste absent
 de la constante `COLUMNS` qui construit les `SELECT` de `users.service.js`. Il
@@ -170,7 +177,8 @@ comptes avec des pseudos aléatoires et les supprime en sortie.
 Développement en TDD, test avant implémentation. Cas couverts :
 
 - inscription : succès, pseudo pris, email pris, mot de passe trop court
-- connexion : succès, mauvais mot de passe, email inconnu — messages identiques
+- connexion : succès par email, succès par pseudo, succès quelle que soit la
+  casse, mauvais mot de passe, identifiant inconnu — messages identiques
 - `me` : sans cookie, avec cookie, après déconnexion
 - déconnexion : idempotente
 - `PATCH` et `DELETE` sur le compte d'autrui : 403
