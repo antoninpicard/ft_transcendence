@@ -56,7 +56,8 @@ curl -s http://localhost:3000/api/health
 | `npm run migrate` | Applies every migration that has not been applied yet. |
 | `npm run db:up` | Starts the PostgreSQL container in the background, from the root `../docker-compose.yml`. |
 | `npm run db:down` | Stops the container. **Data is kept.** |
-| `npm test` | Runs the test suite. **No database required.** |
+| `npm test` | Runs the tests that need no database. |
+| `npm run test:db` | Runs the tests that need PostgreSQL. Start it first with `npm run db:up`. |
 | `npm run db:reset` | Destroys the volume and recreates an empty database. Guarded — see [Resetting the database](#resetting-the-database). |
 
 ---
@@ -280,6 +281,9 @@ would otherwise sort before `2_`.
 The only exception is a migration you have just written, have not pushed, and
 can replay from scratch with `npm run db:reset`.
 
+Migration `002` adds a `NOT NULL` column without a default, so it fails if the
+`users` table already holds rows. Run `npm run db:reset` first in development.
+
 ### Resetting the database
 
 ```bash
@@ -469,16 +473,41 @@ Paginated list.
 `total` is computed by a `count(*) OVER ()` window function inside the same
 query, so a page and its total cost **one** round-trip instead of two.
 
-### `POST /users`
+### `POST /auth/register`
 
-Creates a user. Responds `201` with the created resource and a `Location`
-header pointing at it.
+Creates the account and opens a session. Responds `201` with the created user
+and a session cookie.
 
 ```json
-{ "username": "lucas", "email": "lucas@42.fr" }
+{ "username": "lucas", "email": "lucas@42.fr", "password": "SecurePass123" }
 ```
 
-Returns `409` if the username or the email already exists (case-insensitively).
+Returns `409` if the username or email already exists (case-insensitively).
+
+### `POST /auth/login`
+
+Opens a session. Accepts either email or username as the identifier.
+
+```json
+{ "identifier": "lucas", "password": "SecurePass123" }
+```
+
+Returns `200` with the authenticated user and a session cookie, or `401` if the
+credentials are invalid.
+
+### `POST /auth/logout`
+
+Revokes the current session. Returns `204` with no body, even if called without
+an active session.
+
+### `GET /auth/me`
+
+Returns the authenticated user including their email address. Requires a valid
+session cookie. Returns `401` if unauthenticated.
+
+`GET /users` and `GET /users/:id` expose a public projection — `id`,
+`username`, `createdAt` — with no email address. `PATCH` and `DELETE` require a
+session and reject anyone but the account owner with a `403`.
 
 ### `GET /users/:id`
 
@@ -601,8 +630,6 @@ values live in `requests/http-client.env.json`. Secrets belong in
 
 | Area | Plan |
 |---|---|
-| Authentication | `argon2` for password hashing, JWT sessions, a `password_hash` column, and a `requireAuth` middleware setting `req.user`. |
-| Public/private field split | `GET /users` currently returns every user's email. Once auth exists it must expose a public projection (`id`, `username`, `avatarUrl`) and reserve the full record for the authenticated owner. |
 | Rate limiting | `express-rate-limit`, primarily on login and on the public API. |
 | HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
 | Containerisation | `Dockerfile` (multi-stage, non-root user) plus `.dockerignore`, added as a service to the root `docker-compose.yml`, which currently declares only `db`. |
