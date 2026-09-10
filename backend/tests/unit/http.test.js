@@ -20,7 +20,7 @@ after(async () => {
 });
 
 const post = (body) =>
-  fetch(`${base}/api/users`, {
+  fetch(`${base}/api/auth/register`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body,
@@ -43,7 +43,7 @@ describe('couche HTTP', () => {
   });
 
   it('rejette un corps invalide en 400 avec le détail des champs', async () => {
-    const res = await post(JSON.stringify({ username: 'ab', email: 'nope' }));
+    const res = await post(JSON.stringify({ username: 'ab', email: 'nope', password: 'motdepasse' }));
     assert.equal(res.status, 400);
     const { error } = await res.json();
     assert.deepEqual(
@@ -75,7 +75,9 @@ describe('couche HTTP', () => {
   });
 
   it('traite un corps trop volumineux en 413, pas en 500', async () => {
-    const res = await post(JSON.stringify({ username: 'x'.repeat(200_000), email: 'a@b.fr' }));
+    const res = await post(
+      JSON.stringify({ username: 'x'.repeat(200_000), email: 'a@b.fr', password: 'motdepasse' }),
+    );
     assert.equal(res.status, 413);
   });
 

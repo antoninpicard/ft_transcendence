@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { notFound } from './middlewares/notFound.js';
@@ -16,6 +17,7 @@ export function createApp() {
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigins, credentials: env.corsCredentials }));
   app.use(express.json({ limit: '100kb' }));
+  app.use(cookieParser());
   if (env.NODE_ENV !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
   app.use('/api', noStore, apiRouter);

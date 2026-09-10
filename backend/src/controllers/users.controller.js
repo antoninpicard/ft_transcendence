@@ -9,11 +9,6 @@ export async function getOne(req, res) {
   res.json(await usersService.getPublicUser(req.params.id));
 }
 
-export async function create(req, res) {
-  const user = await usersService.createUser(req.body);
-  res.status(201).location(`/api/users/${user.id}`).json(user);
-}
-
 export async function update(req, res) {
   res.json(await usersService.updateUser(req.params.id, req.body));
 }

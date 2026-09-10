@@ -64,17 +64,6 @@ export async function updateUser(id, patch) {
   }
 }
 
-export async function createUser({ username, email }) {
-  try {
-    return await queryOne(
-      `INSERT INTO users (username, email) VALUES ($1, $2) RETURNING ${PRIVATE_COLUMNS}`,
-      [username, email],
-    );
-  } catch (err) {
-    throw toConflict(err) ?? err;
-  }
-}
-
 export async function deleteUser(id) {
   const { rowCount } = await query('DELETE FROM users WHERE id = $1', [id]);
   if (rowCount === 0) throw AppError.notFound(`Utilisateur ${id} introuvable`);

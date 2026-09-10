@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { checkConnection } from '../db/pool.js';
 import { usersRouter } from './users.routes.js';
+import { authRouter } from './auth.routes.js';
 
 export const apiRouter = Router();
 
@@ -19,3 +20,4 @@ apiRouter.get('/health', async (_req, res) => {
 });
 
 apiRouter.use('/users', usersRouter);
+apiRouter.use('/auth', authRouter);
