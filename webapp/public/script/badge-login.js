@@ -3,7 +3,8 @@ document.getElementById("badge-login-button").addEventListener("click", async ()
 {
 	const statusEl = document.getElementById("badge-login-status");
 
-	const socket = new WebSocket("ws://" + window.location.host);
+	const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+	const socket = new WebSocket(wsProtocol + window.location.host);
 
 	// Open the socket before starting the action, so there's no gap where a scan could arrive unheard
 	await new Promise((resolve) => socket.addEventListener("open", resolve, { once: true }));
