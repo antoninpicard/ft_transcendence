@@ -1,15 +1,19 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "secrets.h"
+#include "ca_cert.h"
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <MFRC522_I2C.h>
+#include <time.h>
 
 
-IPAddress       serverIP;
-MFRC522_I2C     mfrc522(0x28, -1);
-const char*     mdnsName            = "transcendence";
-const uint16_t  SERVER_PORT         = 3000;
+IPAddress        serverIP;
+MFRC522_I2C      mfrc522(0x28, -1);
+WiFiClientSecure secureClient;
+const char*      mdnsName            = "transcendence";
+const uint16_t   SERVER_PORT         = 3000;
 
 String uidInHex()
 {
@@ -28,9 +32,9 @@ void sendScan(const String& uid)
 {
   HTTPClient  http;
   int         status;
-  String      url     = "http://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/scan";
+  String      url     = "https://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/scan";
 
-  http.begin(url);
+  http.begin(secureClient, url);
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Token", DEVICE_TOKEN);
@@ -54,9 +58,9 @@ void sendScan(const String& uid)
 void sendHello()
 {
   HTTPClient http;
-  String url = "http://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/hello";
+  String url = "https://" + serverIP.toString() + ":" + String(SERVER_PORT) + "/api/hello";
 
-  http.begin(url);
+  http.begin(secureClient, url);
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Token", DEVICE_TOKEN);
@@ -68,6 +72,26 @@ void sendHello()
   Serial.println(status);
 
   http.end();
+}
+
+// Sync the system clock via NTP: TLS certificate validation checks the cert's
+// notBefore/notAfter dates, which requires a roughly correct clock. The ESP32
+// has no battery-backed RTC, so it boots with a wrong (1970) clock every time.
+void syncTime()
+{
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
+  Serial.print("Syncing time via NTP");
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2)
+  {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println();
+  Serial.print("Time synced: ");
+  Serial.print(ctime(&now));
 }
 
 void connectWifi()
@@ -90,6 +114,12 @@ void setup() {
   Wire.begin(21, 22);
   mfrc522.PCD_Init();
   connectWifi();
+  syncTime();
+
+  // Trust exactly the backend's own self-signed certificate (see ca_cert.h) instead
+  // of skipping validation with setInsecure() — a MITM presenting any other cert,
+  // even a valid one from a real CA, will be rejected.
+  secureClient.setCACert(ROOT_CA_CERT);
 
   MDNS.begin("esp32-badge");
 
