@@ -3,14 +3,28 @@ const bcrypt = require("bcrypt");
 const router = express.Router();
 const db = require("../../infra/db");
 
+const AUTH_COOLDOWN_MS = 1000;
+const lastAuthAttempt = new Map();
+
 // Check that the email roughly matches the x@y.z format
 function isValidEmail(email)
 {
 	return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// Block rapid repeated login/signup attempts from the same IP (brute-force mitigation)
+function rateLimit(req, res, next)
+{
+	const last = lastAuthAttempt.get(req.ip);
+	if (last && Date.now() - last < AUTH_COOLDOWN_MS)
+		return res.status(429).json({ error: "Too many requests, try again shortly" });
+
+	lastAuthAttempt.set(req.ip, Date.now());
+	next();
+}
+
 // Create a new account with a hashed password, after validating the input
-router.post("/signup", async (req, res) =>
+router.post("/signup", rateLimit, async (req, res) =>
 {
 	const { email, password } = req.body;
 
@@ -34,7 +48,7 @@ router.post("/signup", async (req, res) =>
 });
 
 // Verify credentials and start a session for the user
-router.post("/login", async (req, res) =>
+router.post("/login", rateLimit, async (req, res) =>
 {
 	const { email, password } = req.body;
 

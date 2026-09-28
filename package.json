@@ -5,6 +5,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
     "multicast-dns": "^7.2.5",
     "ws": "^8.21.3"
   },
