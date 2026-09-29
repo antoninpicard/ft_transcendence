@@ -1,0 +1,216 @@
+@import "tailwindcss" source(none);
+@source "../public";
+
+@theme
+{
+	--font-sans: "Rubik", sans-serif;
+	--font-neon: "Monoton", cursive;
+	--font-bungee: "Bungee", cursive;
+	--font-shade: "Bungee Shade", cursive;
+}
+
+@layer base
+{
+	html, body { overflow-x: clip; }
+}
+
+@layer components
+{
+	/* Neon text and boxes */
+	.glow-pink { color: #ff2d95; text-shadow: 0 0 6px #ff2d95, 0 0 20px #ff2d95, 0 0 50px #ff2d95; }
+	.glow-cyan { color: #00f0ff; text-shadow: 0 0 6px #00f0ff, 0 0 18px #00f0ff; }
+	.glow-yellow { color: #ffe600; text-shadow: 0 0 6px #ffe600, 0 0 18px #ffe600, 0 0 40px #ffae00; }
+	.glow-green { color: #39ff14; text-shadow: 0 0 6px #39ff14, 0 0 16px #39ff14; }
+	.glow-red { color: #ff4d4d; text-shadow: 0 0 10px #ff2020; }
+	.box-neon { box-shadow: 0 0 10px #ff2d95, 0 0 40px #ff2d9566, inset 0 0 20px #ff2d9533; }
+
+	.bg-vegas
+	{
+		background:
+			radial-gradient(ellipse at 50% -10%, #ff2d9555, transparent 55%),
+			radial-gradient(ellipse at 10% 110%, #00f0ff33, transparent 50%),
+			radial-gradient(ellipse at 90% 110%, #ffe60022, transparent 50%),
+			#07030f;
+	}
+
+	/* Chasing light bulbs */
+	.bulbs { position: relative; height: 18px; }
+	.bulbs::before, .bulbs::after
+	{
+		content: ""; position: absolute; inset: 0;
+		background-image: radial-gradient(circle, #ffe600 3px, #ffae0055 5px, transparent 7px);
+		background-size: 24px 18px;
+	}
+	.bulbs::before { animation: chase .5s steps(1) infinite reverse; }
+	.bulbs::after { background-position: 12px 0; animation: chase .5s steps(1) infinite; }
+
+	/* Card with a chasing bulb border */
+	.bulb-frame { position: relative; padding: 14px; border-radius: 28px; background: #1a0826; }
+	.bulb-frame::before
+	{
+		content: ""; position: absolute; inset: 0; border-radius: 28px; padding: 6px; pointer-events: none;
+		background: repeating-linear-gradient(90deg, #ffe600 0 8px, transparent 8px 20px);
+		-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+		-webkit-mask-composite: xor; mask-composite: exclude;
+		animation: frame-chase .6s linear infinite; filter: drop-shadow(0 0 6px #ffe600);
+	}
+
+	.flicker { animation: flicker 4s infinite; }
+	.pulse-big { animation: pulse-big 1.2s ease-in-out infinite; }
+
+	/* Endless top banner: the text is written twice and the track slides by exactly one copy */
+	.marquee { overflow: hidden; white-space: nowrap; }
+	.marquee-track { display: flex; width: max-content; animation: marquee 30s linear infinite; }
+	.marquee-track > span { flex-shrink: 0; padding-right: 2rem; }
+
+	.money { position: fixed; top: -10vh; pointer-events: none; z-index: 0; opacity: .5; animation: fall linear infinite; }
+	.feed-item { animation: feed-in .6s ease-out; }
+	.reel.spin { animation: reel-spin .1s linear infinite; }
+
+	/* Buttons */
+	.btn-red { background: linear-gradient(180deg, #ff3b3b, #b30000); box-shadow: 0 0 15px #ff2020, 0 0 45px #ff202099, inset 0 -4px 0 #0005; }
+	.btn-black { background: linear-gradient(180deg, #333, #000); border: 2px solid #fff; box-shadow: 0 0 15px #fff9, 0 0 45px #fff5, inset 0 -4px 0 #0008; }
+	.btn-neon { border: 2px solid #ffe600; border-radius: .5rem; transition: background .2s; }
+	.btn-neon:hover:not(:disabled) { background: #ffe6001a; }
+	.btn-gold
+	{
+		background: linear-gradient(180deg, #fff3a0, #d4af37 50%, #8a6a10); color: #2a1a00;
+		box-shadow: 0 0 15px #ffe600aa, 0 0 40px #d4af3766, inset 0 -4px 0 #0004;
+	}
+	.btn-cyan
+	{
+		border: 2px solid #00f0ff; color: #00f0ff; text-shadow: 0 0 8px #00f0ff;
+		box-shadow: 0 0 10px #00f0ff66, inset 0 0 10px #00f0ff33; transition: background .2s;
+	}
+	.btn-cyan:hover { background: #00f0ff1a; }
+	.btn-casino { display: block; border-radius: .75rem; text-align: center; transition: transform .15s; }
+	.btn-casino:hover { transform: scale(1.04); }
+
+	/* Golden VIP card showing the NFC badge; lights up once a badge is linked */
+	.vip-card
+	{
+		position: relative; aspect-ratio: 1.586; border-radius: 16px; padding: 14px; color: #2a1a00; overflow: hidden;
+		background: linear-gradient(135deg, #fff3a0, #d4af37 40%, #8a6a10 70%, #f3d77a);
+		filter: grayscale(1) brightness(.45); transition: filter .5s, box-shadow .5s;
+	}
+	.vip-card::after
+	{
+		content: ""; position: absolute; inset: 0;
+		background: linear-gradient(110deg, transparent 30%, #fff8 45%, transparent 60%);
+		transform: translateX(-100%);
+	}
+	.vip-chip
+	{
+		width: 42px; height: 32px; border-radius: 6px;
+		background: repeating-linear-gradient(90deg, #b8912a 0 6px, #e9c85a 6px 9px);
+		box-shadow: inset 0 0 0 2px #7a5a00;
+	}
+	.badge-panel.linked .vip-card { filter: none; box-shadow: 0 0 25px #ffe600aa, 0 0 60px #d4af3755; }
+	.badge-panel.linked .vip-card::after { animation: shine 2.5s ease-in-out infinite; }
+	.badge-status { color: #9ca3af; }
+	.badge-panel.linked .badge-status { color: #39ff14; text-shadow: 0 0 6px #39ff14, 0 0 16px #39ff14; }
+
+	.bet { position: relative; transition: transform .15s, background .3s, box-shadow .3s, color .3s; }
+	.bet:hover:not(:disabled) { transform: scale(1.08) rotate(-2deg); }
+	.bet:disabled { background: #3a3a3a; border-color: #666; color: #999; box-shadow: none; cursor: not-allowed; }
+	.bet.chosen:disabled { color: #ddd; }
+	.bet.chosen::before, .bet.chosen::after
+	{
+		position: absolute; top: 50%; transform: translateY(-50%);
+		font-size: 1.1rem; color: #ffe600; text-shadow: 0 0 6px #ffe600, 0 0 16px #ffe600;
+		animation: chase .5s steps(1) infinite;
+	}
+	.bet.chosen::before { content: "▶"; left: -1.4rem; }
+	.bet.chosen::after { content: "◀"; right: -1.4rem; }
+
+	.input-neon
+	{
+		width: 100%; border-radius: .5rem; background: #000; border: 2px solid #00f0ff;
+		padding: .5rem .75rem; outline: none;
+	}
+	.input-neon:focus { box-shadow: 0 0 0 4px #00f0ff88; }
+	.input-neon.input-error { border-color: #ff2020; box-shadow: 0 0 12px #ff2020; }
+
+	/* Roulette: 18 pockets of 20deg (red first), a ball orbiting the other way */
+	.wheel-wrap { position: relative; width: min(16rem, 70vw); aspect-ratio: 1; }
+	.wheel
+	{
+		position: absolute; inset: 14px; border-radius: 9999px;
+		background:
+			repeating-conic-gradient(#d4af37 0deg 1deg, transparent 1deg 20deg),
+			repeating-conic-gradient(#e10600 0deg 20deg, #0a0a0a 20deg 40deg);
+		border: 6px solid #d4af37; box-shadow: 0 0 40px #ffe600aa, inset 0 0 30px #000;
+		transition: transform 4.5s cubic-bezier(.12,.8,.16,1);
+	}
+	.wheel::after
+	{
+		content: "$"; position: absolute; inset: 36%; border-radius: 9999px;
+		display: flex; align-items: center; justify-content: center;
+		font-family: var(--font-bungee); font-size: 1.8rem; color: #3a2500;
+		background: radial-gradient(circle at 35% 30%, #fff3a0, #d4af37 55%, #7a5a00);
+	}
+	.ball-orbit { position: absolute; inset: 14px; pointer-events: none; transition: transform 4.5s cubic-bezier(.12,.8,.16,1); }
+	.ball
+	{
+		position: absolute; left: 50%; top: 1%; width: 16px; height: 16px; margin-left: -8px; border-radius: 9999px;
+		background: radial-gradient(circle at 35% 30%, #fff, #d9d9d9 55%, #7a7a7a);
+		box-shadow: 0 0 10px #fff, 0 2px 4px #000a;
+		transition: top .8s cubic-bezier(.5,0,.75,0);
+	}
+	.ball.dropped { top: calc(18% - 8px); }
+	.ball.landed { box-shadow: 0 0 0 4px #ffe600aa, 0 0 22px #ffe600, 0 0 40px #fff; }
+	.rim-bulb
+	{
+		position: absolute; width: 10px; height: 10px; border-radius: 9999px;
+		background: #ffe600; box-shadow: 0 0 8px #ffe600; animation: chase .4s steps(1) infinite;
+	}
+
+	/* One-shot effects */
+	.particle { position: fixed; pointer-events: none; z-index: 60; font-size: 1.6rem; animation: burst 1.6s cubic-bezier(.1,.7,.3,1) forwards; }
+	.flash { position: fixed; inset: 0; pointer-events: none; z-index: 50; animation: flash .7s ease-out forwards; }
+	.big-text { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 70; }
+	.big-text span { animation: zoom 1.8s cubic-bezier(.2,1.6,.4,1) forwards; }
+	.shake { animation: shake .5s; }
+	.nudge { animation: nudge .6s; }
+}
+
+@keyframes chase { 0% { opacity: 1; } 50% { opacity: .15; } }
+@keyframes frame-chase { to { background-position: 20px 0; } }
+@keyframes flicker { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; } 20%, 24%, 55% { opacity: .3; } }
+@keyframes pulse-big { 50% { transform: scale(1.06); } }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes fall { to { transform: translateY(120vh) rotate(720deg); } }
+@keyframes feed-in { from { transform: translateX(60px); opacity: 0; background: #ffe60066; } to { transform: none; opacity: 1; } }
+@keyframes reel-spin { 50% { transform: translateY(-6px); filter: blur(2px); } }
+@keyframes burst
+{
+	0% { transform: translate(0, 0) scale(.3) rotate(0); opacity: 1; }
+	100% { transform: translate(var(--x), var(--y)) scale(1.2) rotate(var(--r)); opacity: 0; }
+}
+@keyframes flash { from { opacity: .85; } to { opacity: 0; } }
+@keyframes zoom
+{
+	0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+	25% { transform: scale(1.2) rotate(4deg); opacity: 1; }
+	75% { transform: scale(1); opacity: 1; }
+	100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes shake
+{
+	0%, 100% { transform: none; }
+	20% { transform: translate(-12px, 4px) rotate(-1deg); }
+	40% { transform: translate(10px, -6px) rotate(1deg); }
+	60% { transform: translate(-8px, 2px); }
+	80% { transform: translate(6px, -2px); }
+}
+@keyframes shine { 0%, 40% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes nudge { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.12); } 60% { transform: scale(.96); } }
+
+/* Respect the OS "reduce motion" setting */
+@media (prefers-reduced-motion: reduce)
+{
+	*, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+	.wheel, .ball-orbit { transition-duration: .3s; }
+	.ball { transition-duration: .1s; }
+	.money { display: none; }
+}

@@ -14,7 +14,10 @@
   "description": "",
   "main": "infra/app.js",
   "scripts": {
+    "prestart": "npm run build:css",
     "start": "node infra/app.js",
+    "build:css": "tailwindcss -i webapp/styles/input.css -o webapp/public/css/style.css --minify",
+    "watch:css": "tailwindcss -i webapp/styles/input.css -o webapp/public/css/style.css --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -28,5 +31,9 @@
   "bugs": {
     "url": "https://github.com/antoninpicard/ft_transcendence/issues"
   },
-  "homepage": "https://github.com/antoninpicard/ft_transcendence#readme"
+  "homepage": "https://github.com/antoninpicard/ft_transcendence#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
 }
