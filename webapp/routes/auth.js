@@ -88,5 +88,17 @@ router.get("/me", (req, res) =>
 	res.json({ user });
 });
 
+// Destroy the server-side session and clear the session cookie
+router.post("/logout", (req, res) =>
+{
+	req.session.destroy((err) =>
+	{
+		if (err)
+			return res.status(500).json({ error: "Session error" });
+		res.clearCookie("connect.sid", { httpOnly: true, sameSite: "lax", secure: true });
+		res.json({ message: "Logged out" });
+	});
+});
+
 module.exports = router;
 
