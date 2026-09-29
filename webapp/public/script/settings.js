@@ -16,6 +16,7 @@ async function refreshBadgeStatus()
 	}
 
 	statusEl.textContent = data.linked ? "Badge lié à ce compte." : "Aucun badge lié.";
+	document.getElementById("badge-panel").classList.toggle("linked", data.linked);
 	unlinkButton.style.display = data.linked ? "inline" : "none";
 }
 

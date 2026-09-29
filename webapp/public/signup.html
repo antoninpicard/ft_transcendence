@@ -2,22 +2,99 @@
 <html lang="fr">
 	<head>
 		<meta charset="UTF-8">
-		<title>Inscription</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Inscription — Jackpot</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Monoton&family=Bungee&family=Bungee+Shade&family=Rubik:wght@400;600;800;900&display=swap">
+		<link rel="stylesheet" href="/css/style.css">
 	</head>
-	<body>
+	<body class="bg-vegas min-h-screen text-white flex flex-col">
 		<script src="/script/guest-guard.js"></script>
 
-		<h1>Inscription</h1>
+		<div id="money-layer" aria-hidden="true"></div>
 
-		<form id="signup-form">
-			<label for="email">Email</label>
-			<input type="email" id="email" name="email" required>
-			<label for="password">Mot de passe</label>
-			<input type="password" id="password" name="password" required>
-			<button type="submit">Créer un compte</button>
-		</form>
-		<p id="error-message"></p>
-		<p><a href="/login.html">Déjà un compte ? Se connecter</a></p>
+		<div class="relative z-10 bg-linear-to-r from-[#ff2d95] via-[#ffe600] to-[#ff2d95] text-black font-bungee text-sm py-1 marquee" aria-hidden="true">
+			<div class="marquee-track">
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+			</div>
+		</div>
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
+
+		<header class="relative z-10 text-center pt-6 px-4">
+			<p class="font-bungee glow-cyan text-xs sm:text-sm tracking-[.15em] sm:tracking-[.4em]">★ MEGA PROGRESSIVE JACKPOT ★</p>
+			<p id="jackpot" class="font-shade text-2xl sm:text-5xl glow-yellow pulse-big mt-2" aria-hidden="true">$12,847,392.45</p>
+		</header>
+
+		<main class="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 py-8 grid gap-8 lg:grid-cols-[1fr_minmax(0,30rem)_1fr] items-start">
+
+			<aside class="hidden lg:flex flex-col items-center gap-8 pt-6" aria-hidden="true">
+				<div class="font-neon text-6xl leading-tight text-center">
+					<span class="glow-pink block">LAS</span>
+					<span class="glow-cyan block flicker">VEGAS</span>
+				</div>
+				<div class="rounded-2xl border-4 border-[#d4af37] bg-linear-to-b from-[#3a0a4a] to-[#12021a] p-4 shadow-[0_0_30px_#d4af3788]">
+					<p class="font-bungee text-center glow-yellow mb-3">HOT SLOTS</p>
+					<div class="flex gap-2">
+						<div class="reel w-16 h-20 rounded-lg bg-white text-5xl flex items-center justify-center">🍒</div>
+						<div class="reel w-16 h-20 rounded-lg bg-white text-5xl flex items-center justify-center">7️⃣</div>
+						<div class="reel w-16 h-20 rounded-lg bg-white text-5xl flex items-center justify-center">💎</div>
+					</div>
+					<p id="slot-msg" class="font-bungee text-center text-sm mt-3 glow-green">&nbsp;</p>
+				</div>
+				<div class="text-5xl flex gap-4">
+					<span class="pulse-big">🎲</span>
+					<span class="pulse-big [animation-delay:.3s]">🃏</span>
+					<span class="pulse-big [animation-delay:.6s]">🎰</span>
+				</div>
+			</aside>
+
+			<section class="bulb-frame">
+				<div class="rounded-2xl border-2 border-[#ff2d95] box-neon bg-[#0d0616] p-6 sm:p-8">
+
+					<h1 class="font-neon text-4xl sm:text-5xl text-center glow-pink flicker">NEW PLAYER</h1>
+					<p class="text-center font-bungee glow-yellow mt-2 tracking-widest">♦ PRENDS TA PLACE À LA TABLE ♦</p>
+
+					<form id="signup-form" class="mt-8 space-y-4" novalidate>
+						<div>
+							<label for="email" class="block text-sm font-bungee glow-cyan mb-1">EMAIL</label>
+							<input id="email" name="email" type="email" autocomplete="email" required class="input-neon">
+						</div>
+						<div>
+							<label for="password" class="block text-sm font-bungee glow-cyan mb-1">MOT DE PASSE</label>
+							<input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required class="input-neon">
+							<p class="mt-1 text-xs text-gray-400">8 caractères minimum.</p>
+						</div>
+
+						<p id="error-message" class="text-center font-bold glow-red min-h-6" role="alert"></p>
+
+						<button type="submit" class="btn-red w-full rounded-xl py-4 font-bungee text-lg sm:text-xl transition hover:scale-105">CRÉER MON COMPTE</button>
+					</form>
+
+					<p class="mt-6 text-center text-sm text-gray-300">Déjà high roller ? <a href="/login.html" class="glow-pink underline font-bold">Se connecter</a></p>
+				</div>
+			</section>
+
+			<aside class="rounded-2xl border-2 border-[#39ff14] bg-black/70 shadow-[0_0_25px_#39ff1466] overflow-hidden" aria-hidden="true">
+				<div class="flex items-center justify-between px-4 py-3 border-b border-[#39ff14]/40">
+					<p class="font-bungee glow-green">🔥 BIG WINNERS</p>
+					<p class="text-xs font-bold text-red-400 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>LIVE</p>
+				</div>
+				<ul id="feed" class="h-72 lg:h-120 overflow-hidden divide-y divide-white/10"></ul>
+			</aside>
+		</main>
+
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
+		<footer class="relative z-10 py-4 text-center text-xs text-gray-400">
+			<nav class="space-x-4">
+				<a href="/privacy.html" class="hover:text-[#00f0ff] underline">Privacy Policy</a>
+				<a href="/terms.html" class="hover:text-[#00f0ff] underline">Terms of Service</a>
+			</nav>
+			<p class="mt-2 text-[10px] text-gray-500">*Les boissons ne sont pas gratuites. Aucun argent réel. Joue responsable.</p>
+		</footer>
+
+		<script src="/script/casino-decor.js"></script>
 		<script src="/script/signup.js"></script>
-</body>
+	</body>
 </html>

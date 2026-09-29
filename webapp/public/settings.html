@@ -2,20 +2,69 @@
 <html lang="fr">
 	<head>
 		<meta charset="UTF-8">
-		<title>Paramètres</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Paramètres — Jackpot</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Monoton&family=Bungee&family=Bungee+Shade&family=Rubik:wght@400;600;800;900&display=swap">
+		<link rel="stylesheet" href="/css/style.css">
 	</head>
-	<body>
+	<body class="bg-vegas min-h-screen text-white flex flex-col">
 		<script src="/script/auth-guard.js"></script>
 
-		<h1>Paramètres</h1>
-		<p><a href="/home.html">Retour</a></p>
+		<div id="money-layer" aria-hidden="true"></div>
 
-		<h2>Badge NFC</h2>
-		<p id="badge-status">Chargement...</p>
-		<button id="pair-button">Lier mon badge</button>
-		<button id="unlink-button">Délier mon badge</button>
-		<p id="pairing-status"></p>
+		<div class="relative z-10 bg-linear-to-r from-[#ff2d95] via-[#ffe600] to-[#ff2d95] text-black font-bungee text-sm py-1 marquee" aria-hidden="true">
+			<div class="marquee-track">
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+			</div>
+		</div>
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
 
+		<main class="relative z-10 flex-1 w-full max-w-lg mx-auto px-4 py-12">
+			<section class="bulb-frame">
+				<div class="rounded-2xl border-2 border-[#ff2d95] box-neon bg-[#0d0616] p-6 sm:p-8">
+					<h1 class="font-neon text-3xl sm:text-5xl text-center glow-pink flicker">SETTINGS</h1>
+
+					<section id="badge-panel" class="badge-panel mt-8">
+						<h2 class="font-bungee glow-cyan text-lg text-center">♣ BADGE NFC ♣</h2>
+
+						<div class="vip-card mt-4 mx-auto w-full max-w-72" aria-hidden="true">
+							<div class="flex items-start justify-between">
+								<p class="font-bungee text-sm leading-tight">JACKPOT<br>CASINO</p>
+								<p class="font-bungee text-xl leading-none">)))</p>
+							</div>
+							<div class="vip-chip mt-3"></div>
+							<p class="absolute bottom-3 left-4 font-shade text-2xl">VIP PASS</p>
+							<p class="absolute bottom-4 right-4 font-bungee text-xs">HIGH ROLLER</p>
+						</div>
+
+						<p id="badge-status" class="badge-status mt-4 text-center font-bungee" role="status" aria-live="polite">Chargement...</p>
+
+						<div class="mt-5 flex flex-col sm:flex-row gap-3">
+							<button id="pair-button" type="button" class="btn-casino btn-gold flex-1 py-3 font-bungee">LIER MON BADGE</button>
+							<button id="unlink-button" type="button" class="btn-casino btn-black flex-1 py-3 font-bungee">DÉLIER</button>
+						</div>
+						<p id="pairing-status" class="mt-4 rounded-lg border border-dashed border-[#00f0ff]/60 px-3 py-2 text-center text-sm glow-cyan empty:hidden" role="status" aria-live="polite"></p>
+					</section>
+
+					<div class="bulbs mt-8" aria-hidden="true"></div>
+					<a href="/home.html" class="btn-casino btn-cyan mt-6 py-3 font-bungee">← RETOUR À L'ACCUEIL</a>
+				</div>
+			</section>
+		</main>
+
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
+		<footer class="relative z-10 py-4 text-center text-xs text-gray-400">
+			<nav class="space-x-4">
+				<a href="/privacy.html" class="hover:text-[#00f0ff] underline">Privacy Policy</a>
+				<a href="/terms.html" class="hover:text-[#00f0ff] underline">Terms of Service</a>
+			</nav>
+			<p class="mt-2 text-[10px] text-gray-500">*Les boissons ne sont pas gratuites. Aucun argent réel. Joue responsable.</p>
+		</footer>
+
+		<script src="/script/casino-decor.js"></script>
 		<script src="/script/settings.js"></script>
 	</body>
 </html>

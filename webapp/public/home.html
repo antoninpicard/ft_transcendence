@@ -2,17 +2,50 @@
 <html lang="fr">
 	<head>
 		<meta charset="UTF-8">
-		<title>Accueil</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Accueil — Jackpot</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Monoton&family=Bungee&family=Bungee+Shade&family=Rubik:wght@400;600;800;900&display=swap">
+		<link rel="stylesheet" href="/css/style.css">
 	</head>
-	<body>
+	<body class="bg-vegas min-h-screen text-white flex flex-col">
 		<script src="/script/auth-guard.js"></script>
 
-		<h1>Connecté</h1>
+		<div id="money-layer" aria-hidden="true"></div>
 
-		<p><a href="/settings.html">Paramètres</a></p>
+		<div class="relative z-10 bg-linear-to-r from-[#ff2d95] via-[#ffe600] to-[#ff2d95] text-black font-bungee text-sm py-1 marquee" aria-hidden="true">
+			<div class="marquee-track">
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+				<span>★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT ★ WIN BIG ★ OPEN 24/7 ★ NO LIMIT ★ FREE DRINKS* ★ HIGH ROLLERS WELCOME ★ ALL IN ★ DOUBLE OR NOTHING ★ LUCKY 7 ★ JACKPOT TONIGHT</span>
+			</div>
+		</div>
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
 
-		<button id="logout-button">Se déconnecter</button>
+		<main class="relative z-10 flex-1 w-full max-w-lg mx-auto px-4 py-12">
+			<section class="bulb-frame">
+				<div class="rounded-2xl border-2 border-[#ff2d95] box-neon bg-[#0d0616] p-6 sm:p-8 text-center">
+					<h1 class="font-neon text-4xl sm:text-5xl glow-pink flicker">WELCOME</h1>
+					<p class="font-bungee glow-yellow mt-3 tracking-widest">★ TU ES CONNECTÉ, HIGH ROLLER ★</p>
 
+					<div class="mt-8 flex flex-col gap-4">
+						<a href="/settings.html" class="btn-neon block py-3 font-bungee glow-yellow">PARAMÈTRES</a>
+						<button id="logout-button" type="button" class="btn-red rounded-xl py-3 font-bungee transition hover:scale-105">SE DÉCONNECTER</button>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<div class="bulbs relative z-10" aria-hidden="true"></div>
+		<footer class="relative z-10 py-4 text-center text-xs text-gray-400">
+			<nav class="space-x-4">
+				<a href="/privacy.html" class="hover:text-[#00f0ff] underline">Privacy Policy</a>
+				<a href="/terms.html" class="hover:text-[#00f0ff] underline">Terms of Service</a>
+			</nav>
+			<p class="mt-2 text-[10px] text-gray-500">*Les boissons ne sont pas gratuites. Aucun argent réel. Joue responsable.</p>
+		</footer>
+
+		<script src="/script/casino-decor.js"></script>
 		<script src="/script/logout.js"></script>
 	</body>
 </html>
