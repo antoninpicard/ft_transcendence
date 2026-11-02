@@ -1,18 +1,29 @@
-all: $(NAME)
+COMPOSE_FILE = contbuild/docker-compose.yml
 
-$(NAME): $(OBJS) $(HEADER)
-	$(CC) $(FLAGS) $(OBJS) -o $(NAME)
-	@echo "Program compilation successfull !"
+all:
+	@clear
+	docker compose -f $(COMPOSE_FILE) up --build -d
 
-%.o: %.cpp  $(HEADER)
-	$(CC) $(FLAGS) -c $< -o $@
+a_wish:
+	@echo "Images :"
+	@docker images
+	@echo "\nConteneurs en cours :"
+	@docker ps -a
+	@echo "\n"
+	docker logs contbuild-app-1
+	@echo "\n"
+
+stop:
+	@clear
+	docker compose -f $(COMPOSE_FILE) down
+
 
 clean:
-	@rm -f *.o
+	docker compose -f $(COMPOSE_FILE) down
+	@echo "After cleaning :"
+	@docker ps -a
 
-fclean: clean
-	@rm -f $(NAME)
+re:
+	@make clean && make
 
-re: fclean $(NAME)
-
-.PHONY: all clean fclean re%
+.PHONY: all status clean re

@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+
+
+contbuild/.env
+
+contbuild/Dockerfile
+
+contbuild/docker-compose.yml
+
+README.md
