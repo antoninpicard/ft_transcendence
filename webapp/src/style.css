@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
-@source "../public";
+@source "./";
+@source "../index.html";
 
 @theme
 {
@@ -12,6 +13,7 @@
 @layer base
 {
 	html, body { overflow-x: clip; }
+	#app { min-height: 100vh; display: flex; flex-direction: column; }
 }
 
 @layer components

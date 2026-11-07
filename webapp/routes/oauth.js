@@ -80,7 +80,7 @@ router.get("/auth/42/callback", async (req, res) =>
 			{
 				if (err2)
 					return res.status(500).send("Session error");
-				res.redirect("/home.html");
+				res.redirect("/home");
 			});
 		});
 	}

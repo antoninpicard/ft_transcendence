@@ -7,6 +7,8 @@
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
     "multicast-dns": "^7.2.5",
+    "vue": "^3.5.45",
+    "vue-router": "^5.4.0",
     "ws": "^8.21.3"
   },
   "name": "ft_transcendence",
@@ -14,10 +16,10 @@
   "description": "",
   "main": "infra/app.js",
   "scripts": {
-    "prestart": "npm run build:css",
+    "prestart": "npm run build",
     "start": "node infra/app.js",
-    "build:css": "tailwindcss -i webapp/styles/input.css -o webapp/public/css/style.css --minify",
-    "watch:css": "tailwindcss -i webapp/styles/input.css -o webapp/public/css/style.css --watch",
+    "build": "vite build",
+    "dev": "vite",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -33,7 +35,9 @@
   },
   "homepage": "https://github.com/antoninpicard/ft_transcendence#readme",
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
-    "tailwindcss": "^4.3.3"
+    "@tailwindcss/vite": "^4.3.5",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.6"
   }
 }

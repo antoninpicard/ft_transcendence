@@ -1,19 +1,21 @@
 // Restart a one-shot CSS animation class on an element
 function replayAnimation(element, className)
 {
+	if (!element)
+		return;
 	element.classList.remove(className);
 	void element.offsetWidth;
 	element.classList.add(className);
 }
 
 // Briefly bounce an element to draw attention to it
-function nudge(element)
+export function nudge(element)
 {
 	replayAnimation(element, "nudge");
 }
 
 // Shake an element (used on failures)
-function shake(element)
+export function shake(element)
 {
 	replayAnimation(element, "shake");
 }
@@ -65,7 +67,7 @@ function explode(x, y, icons, count)
 }
 
 // Winning celebration: gold flash, money explosion, fireworks and a giant JACKPOT
-function celebrate(x, y)
+export function celebrate(x, y)
 {
 	flashScreen("#ffe600");
 	explode(x, y, ["💰", "💵", "🪙", "💎", "⭐", "🎰", "🤑"], 90);
@@ -74,7 +76,7 @@ function celebrate(x, y)
 }
 
 // Losing effect: red flash, shaking card and a giant BUSTED
-function busted(x, y, card)
+export function busted(x, y, card)
 {
 	flashScreen("#ff0000");
 	shake(card);
