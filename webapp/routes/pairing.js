@@ -5,10 +5,13 @@ const router = express.Router();
 
 const ACTION_TTL_MS = 30000;
 const BADGE_LOGIN_START_COOLDOWN_MS = 10000;
+const RESULT_BUFFER_MS = 5000;
 
 let pendingAction = null;
 const pendingLoginTokens = new Map();
 const lastBadgeLoginStart = new Map();
+// Buffers a scan result by code when it arrives before the browser's WebSocket has authenticated
+const recentResults = new Map();
 
 // Atomically replace a user's linked badge with a new one (delete old, insert new)
 const relinkBadge = db.transaction((uidHash, userId) =>
@@ -135,6 +138,11 @@ function attachWebSocket(wss)
 
 			if (pendingAction && !pendingAction.socket && pendingAction.code === code)
 				pendingAction.socket = socket;
+			else if (recentResults.has(code))
+			{
+				socket.send(JSON.stringify(recentResults.get(code)));
+				recentResults.delete(code);
+			}
 			else
 				socket.close();
 		});
@@ -153,6 +161,7 @@ function handleScan(uid)
 	const uidHash = crypto.createHash("sha256").update(uid).digest("hex");
 	const action = pendingAction;
 	let result;
+	let payload;
 
 	console.log("[badge] send uid", uid, "for", action.mode);
 
@@ -168,8 +177,7 @@ function handleScan(uid)
 			result = "already-linked";
 		}
 
-		if (action.socket)
-			action.socket.send(JSON.stringify({ status: result }));
+		payload = { status: result };
 	}
 	else
 	{
@@ -179,8 +187,7 @@ function handleScan(uid)
 		{
 			result = "unknown-badge";
 			console.log("[badge] uid", uid, "not linked to any account");
-			if (action.socket)
-				action.socket.send(JSON.stringify({ status: result }));
+			payload = { status: result };
 		}
 		else
 		{
@@ -189,9 +196,18 @@ function handleScan(uid)
 			pendingLoginTokens.set(token, { userId: badge.user_id, expiresAt: Date.now() + 10000 });
 			setTimeout(() => pendingLoginTokens.delete(token), 10000);
 
-			if (action.socket)
-				action.socket.send(JSON.stringify({ status: result, token }));
+			payload = { status: result, token };
 		}
+	}
+
+	// Deliver the result now if the browser's socket is already attached, otherwise
+	// buffer it briefly by code so a socket that authenticates a moment late still gets it
+	if (action.socket)
+		action.socket.send(JSON.stringify(payload));
+	else
+	{
+		recentResults.set(action.code, payload);
+		setTimeout(() => recentResults.delete(action.code), RESULT_BUFFER_MS);
 	}
 
 	pendingAction = null;
