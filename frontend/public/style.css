@@ -480,3 +480,232 @@ body > p {
 		padding: 10px 4px;
 	}
 }
+
+
+/* Sélection de tickets à gratter */
+.scratch-page .game-layout {
+	grid-template-columns: minmax(220px, 250px) minmax(320px, 1fr) minmax(245px, 295px);
+}
+
+.scratch-page .scratch-center {
+	min-width: 0;
+}
+
+.scratch-page .scratch-stage {
+	display: grid;
+	place-items: center;
+	min-height: 290px;
+	margin: 18px 0 12px;
+	padding: 20px;
+	border: 1px dashed #dfc49c;
+	border-radius: 16px;
+	background:
+		radial-gradient(circle, rgba(217, 154, 82, 0.18), transparent 65%),
+		#fff9ed;
+}
+
+.scratch-page .scratch-ticket {
+	position: relative;
+	display: flex;
+	width: min(100%, 330px);
+	min-height: 220px;
+	flex-direction: column;
+	justify-content: space-between;
+	overflow: hidden;
+	padding: 17px 19px;
+	border: 5px double #f7d98e;
+	border-radius: 13px;
+	background: linear-gradient(140deg, #9b552b, #d99a52 48%, #814321);
+	box-shadow: 0 13px 22px rgba(75, 45, 32, 0.24), inset 0 0 0 2px rgba(255, 245, 210, 0.25);
+	color: #fff7dc;
+	text-align: center;
+}
+
+.scratch-page .scratch-ticket::before,
+.scratch-page .scratch-ticket::after {
+	position: absolute;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #fff9ed;
+	content: "";
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.scratch-page .scratch-ticket::before { left: -16px; }
+.scratch-page .scratch-ticket::after { right: -16px; }
+
+.scratch-page .ticket-topline,
+.scratch-page .ticket-bottom {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 0.66rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.scratch-page .ticket-title {
+	color: #fff2bd;
+	font-size: clamp(2rem, 5vw, 3rem);
+	font-weight: 900;
+	line-height: 0.95;
+	letter-spacing: 0.06em;
+	text-shadow: 0 3px 0 #78401f, 0 5px 8px rgba(60, 30, 10, 0.25);
+}
+
+.scratch-page .ticket-stars {
+	color: #ffe7a2;
+	font-size: 1.25rem;
+}
+
+.scratch-page .scratch-spots {
+	display: flex;
+	justify-content: center;
+	gap: 12px;
+}
+
+.scratch-page .scratch-spots span {
+	display: grid;
+	width: 43px;
+	height: 43px;
+	place-items: center;
+	border: 2px solid #d9c6a1;
+	border-radius: 8px;
+	background: repeating-linear-gradient(135deg, #d7d0c2 0 5px, #eee7d9 5px 10px);
+	box-shadow: inset 0 1px 3px rgba(70, 50, 30, 0.2);
+	color: #76513b;
+	font-size: 1.3rem;
+}
+
+.scratch-page .ticket-bottom {
+	font-size: 0.58rem;
+	letter-spacing: 0.02em;
+}
+
+.scratch-page .ticket-bottom strong {
+	color: #fff2bd;
+	font-size: 1rem;
+}
+
+.scratch-page .ticket-caption {
+	margin: 0 0 18px;
+	color: var(--chocolate-soft);
+	font-size: 0.86rem;
+}
+
+.scratch-page .picker-intro {
+	margin: -8px 0 12px;
+	color: var(--chocolate-soft);
+	font-size: 0.82rem;
+}
+
+.scratch-page .ticket-level {
+	margin-top: 13px;
+	padding-top: 12px;
+	border-top: 1px solid #efe1c9;
+}
+
+.scratch-page .ticket-level h3 {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 0 8px;
+	color: var(--caramel);
+	font-size: 1rem;
+}
+
+.scratch-page .ticket-level h3 span {
+	color: #94765d;
+	font-size: 0.68rem;
+	font-weight: 400;
+}
+
+.scratch-page .ticket-level a {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 7px;
+	padding: 8px;
+	border: 1px solid transparent;
+	border-radius: 10px;
+	background: #fff9ed;
+	color: var(--chocolate);
+	text-decoration: none;
+	transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.scratch-page .ticket-level a:hover {
+	transform: translateX(2px);
+	border-color: var(--line);
+	background: var(--cream-deep);
+}
+
+.scratch-page .ticket-level a strong,
+.scratch-page .ticket-level a small {
+	display: block;
+}
+
+.scratch-page .ticket-level a strong {
+	font-size: 0.82rem;
+}
+
+.scratch-page .ticket-level a small {
+	margin-top: 1px;
+	color: var(--chocolate-soft);
+	font-size: 0.7rem;
+}
+
+.scratch-page .mini-ticket {
+	display: grid;
+	width: 39px;
+	height: 46px;
+	flex: 0 0 39px;
+	place-items: center;
+	border: 2px solid rgba(255, 255, 255, 0.7);
+	border-radius: 6px;
+	box-shadow: 0 2px 5px rgba(75, 45, 32, 0.14);
+	color: #fff8e9;
+	font-size: 1.25rem;
+}
+
+.scratch-page .mini-ticket-green { background: linear-gradient(145deg, #5f8757, #315b3d); }
+.scratch-page .mini-ticket-blue { background: linear-gradient(145deg, #6796b2, #315d7c); }
+.scratch-page .mini-ticket-gold { background: linear-gradient(145deg, #e2b65d, #a96532); }
+.scratch-page .mini-ticket-red { background: linear-gradient(145deg, #c56b55, #873a31); }
+.scratch-page .mini-ticket-purple { background: linear-gradient(145deg, #9b7ca9, #59416d); }
+
+@media (max-width: 1000px) {
+	.scratch-page .game-layout {
+		grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.3fr);
+	}
+
+	.scratch-page .game-picker {
+		grid-column: 1 / -1;
+	}
+
+	.scratch-page .game-picker .ticket-level {
+		display: inline-block;
+		width: calc(33.333% - 10px);
+		margin-right: 8px;
+		vertical-align: top;
+	}
+}
+
+@media (max-width: 620px) {
+	.scratch-page .game-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.scratch-page .game-picker {
+		grid-column: auto;
+	}
+
+	.scratch-page .game-picker .ticket-level {
+		display: block;
+		width: 100%;
+		margin-right: 0;
+	}
+}

@@ -3,15 +3,15 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Cookie Club — Jeu</title>
+		<title>Scratch Club — Jeux à gratter</title>
 		<link rel="stylesheet" href="/style.css">
 	</head>
-	<body class="game-page">
+	<body class="game-page scratch-page">
 		<div class="game-shell">
 			<header class="game-header">
 				<div>
-					<h1 class="game-brand">Cookie Club</h1>
-					<p class="game-tagline">Un petit coin doux pour les grands gourmands.</p>
+					<h1 class="game-brand">Scratch Club</h1>
+					<p class="game-tagline">Choisissez votre ticket porte-bonheur.</p>
 				</div>
 				<a href="/home.html">← Retour à l'accueil</a>
 			</header>
@@ -20,50 +20,66 @@
 				<div class="game-layout">
 					<aside class="game-panel leaderboard" aria-label="Classement des joueurs">
 						<h2 class="panel-heading">🏆 Classement</h2>
-						<p class="leaderboard-kicker">Les meilleurs gourmands</p>
-						<div class="leader-row"><span class="leader-rank">🥇</span><strong>CookieMaster</strong><span class="leader-score">12 840</span></div>
-						<div class="leader-row"><span class="leader-rank">🥈</span><strong>ChocoLover</strong><span class="leader-score">9 620</span></div>
-						<div class="leader-row"><span class="leader-rank">🥉</span><strong>VanillaSky</strong><span class="leader-score">7 450</span></div>
-						<div class="leader-row"><span class="leader-rank">4</span><strong>CaramelKid</strong><span class="leader-score">5 180</span></div>
-						<div class="leader-row"><span class="leader-rank">5</span><strong>PetitBiscuit</strong><span class="leader-score">3 960</span></div>
-						<div class="leader-row player-row"><span class="leader-rank">6</span><strong>Vous</strong><span class="leader-score">2 450</span></div>
+						<p class="leaderboard-kicker">Les plus chanceux du club</p>
+						<div class="leader-row"><span class="leader-rank">🥇</span><strong>LuckyStar</strong><span class="leader-score">12 840 pts</span></div>
+						<div class="leader-row"><span class="leader-rank">🥈</span><strong>GoldenTouch</strong><span class="leader-score">9 620 pts</span></div>
+						<div class="leader-row"><span class="leader-rank">🥉</span><strong>TrèfleVert</strong><span class="leader-score">7 450 pts</span></div>
+						<div class="leader-row"><span class="leader-rank">4</span><strong>Chanceux</strong><span class="leader-score">5 180 pts</span></div>
+						<div class="leader-row"><span class="leader-rank">5</span><strong>ÉtoileFilante</strong><span class="leader-score">3 960 pts</span></div>
+						<div class="leader-row player-row"><span class="leader-rank">6</span><strong>Vous</strong><span class="leader-score">2 450 pts</span></div>
 					</aside>
 
-					<section class="game-center" aria-label="Aperçu du jeu">
-						<p class="game-eyebrow">Votre partie</p>
-						<h2 class="game-title">La fabrique à cookies</h2>
-						<div class="cookie-stage">
-							<div class="big-cookie" role="img" aria-label="Un gros cookie">🍪</div>
+					<section class="game-center scratch-center" aria-label="Aperçu d'un jeu à gratter">
+						<p class="game-eyebrow">Ticket à la une</p>
+						<h2 class="game-title">Trésor Doré</h2>
+						<div class="scratch-stage">
+							<div class="scratch-ticket" role="img" aria-label="Illustration d'un ticket à gratter Trésor Doré">
+								<div class="ticket-topline"><span>SCRATCH CLUB</span><span>N° 008421</span></div>
+								<div class="ticket-title">TRÉSOR<br> DORÉ</div>
+								<div class="ticket-stars">✦　✧　✦</div>
+								<div class="scratch-spots"><span>?</span><span>?</span><span>?</span></div>
+								<div class="ticket-bottom"><span>3 symboles identiques = jackpot</span><strong>10 €</strong></div>
+							</div>
 						</div>
-						<p class="cookie-count">2 450 cookies</p>
-						<p class="cookie-caption">Votre délicieux butin</p>
+						<p class="ticket-caption">Un ticket démo sélectionné · Visuel uniquement</p>
 						<div class="game-metrics">
-							<div class="metric"><strong>+12</strong><span>Par seconde</span></div>
-							<div class="metric"><strong>08</strong><span>Améliorations</span></div>
-							<div class="metric"><strong>02:45</strong><span>Temps de jeu</span></div>
+							<div class="metric"><strong>10 €</strong><span>Prix du ticket</span></div>
+							<div class="metric"><strong>5</strong><span>Jeux disponibles</span></div>
+							<div class="metric"><strong>—</strong><span>Gain potentiel</span></div>
 						</div>
 					</section>
 
-					<aside class="game-panel game-nav-panel">
-						<h2 class="panel-heading">Votre espace</h2>
-						<nav class="game-nav" aria-label="Navigation du jeu">
-							<a href="#options"><span class="nav-icon">⚙</span> Options</a>
-							<a href="#statistiques"><span class="nav-icon">📊</span> Statistiques</a>
-					</nav>
+					<aside class="game-panel game-picker" aria-label="Sélection des jeux à gratter">
+						<h2 class="panel-heading">🎟 Choisir un jeu</h2>
+						<p class="picker-intro">Par prix du ticket</p>
+						<section class="ticket-level" id="niveau-5">
+							<h3>5 € <span>Découverte</span></h3>
+							<a href="#ticket-tresor"><span class="mini-ticket mini-ticket-green">♣</span><span><strong>Trèfle Chance</strong><small>Ticket porte-bonheur</small></span></a>
+							<a href="#ticket-tresor"><span class="mini-ticket mini-ticket-blue">✦</span><span><strong>Étoile Filante</strong><small>À vous la chance</small></span></a>
+						</section>
+						<section class="ticket-level" id="niveau-10">
+							<h3>10 € <span>Classique</span></h3>
+							<a href="#ticket-tresor"><span class="mini-ticket mini-ticket-gold">★</span><span><strong>Trésor Doré</strong><small>Le ticket à la une</small></span></a>
+							<a href="#ticket-tresor"><span class="mini-ticket mini-ticket-red">♦</span><span><strong>Diamant Rouge</strong><small>Un éclat de fortune</small></span></a>
+						</section>
+						<section class="ticket-level" id="niveau-20">
+							<h3>20 € <span>Prestige</span></h3>
+							<a href="#ticket-tresor"><span class="mini-ticket mini-ticket-purple">♛</span><span><strong>Royale</strong><small>Le grand format</small></span></a>
+						</section>
 					</aside>
 				</div>
 
 				<div class="lower-panels">
 					<section class="game-panel" id="options">
 						<h2 class="panel-heading">⚙ Options</h2>
-						<p>Un aperçu de l'emplacement réservé aux réglages de votre partie.</p>
+						<p>Un aperçu de l'emplacement réservé aux réglages de votre espace.</p>
 					</section>
 					<section class="game-panel" id="statistiques">
 						<h2 class="panel-heading">📊 Statistiques</h2>
 						<p>Un aperçu de l'emplacement réservé à vos records et à votre progression.</p>
 					</section>
 				</div>
-				<p class="sample-note">Maquette visuelle — scores et statistiques fictifs, aucune mécanique de jeu n'est activée.</p>
+				<p class="sample-note">Maquette visuelle uniquement — jeux, prix, scores et gains fictifs. Aucun jeu à gratter ni paiement n'est activé.</p>
 			</main>
 		</div>
 	</body>
