@@ -2,9 +2,10 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "8080:80"
+      - "8443:443"
     volumes:
       - ./waf/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./waf/certs:/etc/nginx/certs:ro
     depends_on:
       - whoami
 
