@@ -1,1 +1,4 @@
 node_modules/
+cybersecurity/waf/certs/*.key
+cybersecurity/waf/certs/*.crt
+.DS_Store
