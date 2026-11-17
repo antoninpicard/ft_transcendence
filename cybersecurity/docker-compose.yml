@@ -14,6 +14,7 @@ services:
       - MODSEC_RULE_ENGINE=On
       - BLOCKING_PARANOIA=2
       - ALLOWED_METHODS=GET HEAD POST PUT PATCH DELETE OPTIONS
+      - MODSEC_AUDIT_LOG_PARTS=ABJDFHZ
     depends_on:
       - whoami
 
