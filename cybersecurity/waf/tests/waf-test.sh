@@ -83,7 +83,11 @@ if curl -s -o /dev/null --max-time 3 "http://${HOST}:${HTTP_PORT}/"; then
 else
   ok "Port HTTP en clair fermé" "connexion refusée"
 fi
-check "TLS 1.3 accepté" 200 --tlsv1.3 "$BASE/"
+if openssl s_client -connect "${HOST}:${HTTPS_PORT}" -tls1_3 </dev/null 2>&1 | grep -q "TLSv1.3, Cipher is TLS"; then
+  ok "TLS 1.3 accepté" "négocié"
+else
+  ko "TLS 1.3 accepté" "échec de la négociation"
+fi
 check "TLS 1.2 accepté" 200 --tlsv1.2 --tls-max 1.2 "$BASE/"
 if [ -f "$CERT" ]; then
   served=$(openssl s_client -connect "${HOST}:${HTTPS_PORT}" -servername "$HOST" </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256)
