@@ -5,6 +5,7 @@ services:
       - "8443:8443"
     volumes:
       - ./waf/certs:/etc/nginx/certs:ro
+      - ./waf/rules/before-crs.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
     environment:
       - BACKEND=http://whoami:80
       - SERVER_NAME=localhost
