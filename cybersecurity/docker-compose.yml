@@ -11,6 +11,8 @@ services:
       - SSL_CERT_FILE=/etc/nginx/certs/server.crt
       - SSL_CERT_KEY_FILE=/etc/nginx/certs/server.key
       - MODSEC_RULE_ENGINE=On
+      - BLOCKING_PARANOIA=2
+      - ALLOWED_METHODS=GET HEAD POST PUT PATCH DELETE OPTIONS
     depends_on:
       - whoami
 
