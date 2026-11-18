@@ -16,8 +16,8 @@ TOKEN="$(wget -qO- \
 [ -n "$TOKEN" ] || { echo "login failed" >&2; exit 1; }
 echo "login OK (token length: ${#TOKEN})"
 
-# 2. Read this service's secrets
-DATA="$(wget -qO- --header "X-Vault-Token: $TOKEN" "$VAULT/v1/secret/data/backend/app")"
+# 2. Read the secret at the given path (default: this service's own secret)
+DATA="$(wget -qO- --header "X-Vault-Token: $TOKEN" "$VAULT/v1/${1:-secret/data/backend/app}")"
 
 # 3. Prove we got them without printing the values
 for k in DB_PASSWORD JWT_SECRET; do
