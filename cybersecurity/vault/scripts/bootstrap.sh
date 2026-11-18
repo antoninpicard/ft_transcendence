@@ -49,13 +49,20 @@ grep -q '"secret/"' <<<"$mounts" || vault_cmd secrets enable -path=secret kv-v2
 auths="$(vault_cmd auth list -format=json)"
 grep -q '"approle/"' <<<"$auths" || vault_cmd auth enable approle
 
-# 4c. One policy and one AppRole role per file in vault/policies/
+# 4c. One policy, one AppRole role and one set of credentials per file in vault/policies/
 for f in "$SCRIPT_DIR"/../policies/*.hcl; do
-  name="$(basename "$f" .hcl)"        
-  svc="${name%-read}"                 
+  name="$(basename "$f" .hcl)"        # e.g. backend-read
+  svc="${name%-read}"                 # e.g. backend
   vault_cmd policy write "$name" - < "$f"
   vault_cmd write "auth/approle/role/$svc" \
     token_policies="$name" token_ttl=1h token_max_ttl=4h >/dev/null
+
+  # AppRole credentials for this service (local files, owner-only, never committed)
+  run_dir="$SCRIPT_DIR/../run/$svc"
+  mkdir -p "$run_dir"
+  (umask 077
+   vault_cmd read -field=role_id "auth/approle/role/$svc/role-id" > "$run_dir/role_id"
+   vault_cmd write -f -field=secret_id "auth/approle/role/$svc/secret-id" > "$run_dir/secret_id")
 done
 
 # 4d. Load secrets: vault/secrets/<service>.env -> secret/<service>/app
