@@ -32,6 +32,16 @@ services:
     networks:
       - vault-net
 
+  secret-demo:
+    image: alpine:3.20
+    entrypoint: ["/bin/sh", "/fetch-secrets.sh"]
+    volumes:
+      - ./vault/run/backend:/run/vault:ro
+      - ./vault/demo/fetch-secrets.sh:/fetch-secrets.sh:ro
+    networks:
+      - vault-net
+    profiles: ["demo"]
+
 networks:
   vault-net:
     internal: true
