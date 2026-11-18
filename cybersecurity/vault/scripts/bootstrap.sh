@@ -2,6 +2,7 @@
 set -euo pipefail
 
 INIT_FILE="${VAULT_INIT_FILE:-$HOME/vault-init.json}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 vault_cmd() {
   docker compose exec -T -e VAULT_ADDR=http://127.0.0.1:8200 \
@@ -36,6 +37,43 @@ if grep -q '"sealed": true' <<<"$status"; then
   done
 fi
 
-# 4. Final check
+# 4. Configure Vault (idempotent: every command can run again safely)
+# Root token is read from the init file, only inside this script
+export VAULT_TOKEN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["root_token"])' "$INIT_FILE")"
+
+# 4a. KV v2 engine at secret/
+mounts="$(vault_cmd secrets list -format=json)"
+grep -q '"secret/"' <<<"$mounts" || vault_cmd secrets enable -path=secret kv-v2
+
+# 4b. AppRole auth method
+auths="$(vault_cmd auth list -format=json)"
+grep -q '"approle/"' <<<"$auths" || vault_cmd auth enable approle
+
+# 4c. One policy and one AppRole role per file in vault/policies/
+for f in "$SCRIPT_DIR"/../policies/*.hcl; do
+  name="$(basename "$f" .hcl)"        
+  svc="${name%-read}"                 
+  vault_cmd policy write "$name" - < "$f"
+  vault_cmd write "auth/approle/role/$svc" \
+    token_policies="$name" token_ttl=1h token_max_ttl=4h >/dev/null
+done
+
+# 4d. Load secrets: vault/secrets/<service>.env -> secret/<service>/app
+for f in "$SCRIPT_DIR"/../secrets/*.env; do
+  [ -e "$f" ] || continue
+  svc="$(basename "$f" .env)"
+  args=()
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|\#*) continue ;; esac
+    args+=("$line")
+  done < "$f"
+  if [ "${#args[@]}" -gt 0 ]; then
+    vault_cmd kv put -mount=secret "$svc/app" "${args[@]}" >/dev/null
+  fi
+done
+
+unset VAULT_TOKEN
+
+# 5. Final check
 status="$(vault_status)"
 grep -q '"sealed": false' <<<"$status" || { echo "Vault is still sealed" >&2; exit 1; }
