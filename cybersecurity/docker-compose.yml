@@ -7,7 +7,7 @@ services:
       - ./waf/certs:/etc/nginx/certs:ro
       - ./waf/rules/before-crs.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
     environment:
-      - BACKEND=http://whoami:80
+      - BACKEND=${WAF_BACKEND:-http://whoami:80}
       - SERVER_NAME=localhost
       - SSL_CERT_FILE=/etc/nginx/certs/server.crt
       - SSL_CERT_KEY_FILE=/etc/nginx/certs/server.key

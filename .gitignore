@@ -4,3 +4,5 @@ cybersecurity/waf/certs/*.crt
 cybersecurity/vault/secrets/*.env
 cybersecurity/vault/run/
 .DS_Store
+.env
+**/.env
