@@ -20,3 +20,21 @@ services:
 
   whoami:
     image: traefik/whoami
+
+  vault:
+    image: hashicorp/vault:2.1.2
+    command: server
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks:
+      - vault-net
+
+networks:
+  vault-net:
+    internal: true
+
+volumes:
+  vault-data:
