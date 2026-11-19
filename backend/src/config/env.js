@@ -2,6 +2,16 @@ import { z } from 'zod';
 
 const blankToUndefined = (v) => (v === '' ? undefined : v);
 
+const PLACEHOLDER = /<[^<>]*>/;
+
+const configValue = (inner) =>
+  z.preprocess(
+    blankToUndefined,
+    inner
+      .refine((v) => !PLACEHOLDER.test(v), { message: "valeur d'exemple non remplacée" })
+      .optional(),
+  );
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -9,12 +19,12 @@ const schema = z
     CORS_ORIGIN: z.string().optional(),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
-    FORTYTWO_CLIENT_ID: z.preprocess(blankToUndefined, z.string().min(1).optional()),
-    FORTYTWO_CLIENT_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
-    FORTYTWO_REDIRECT_URI: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    FORTYTWO_CLIENT_ID: configValue(z.string().min(1)),
+    FORTYTWO_CLIENT_SECRET: configValue(z.string().min(1)),
+    FORTYTWO_REDIRECT_URI: configValue(z.string().min(1)),
     FORTYTWO_API_URL: z.preprocess(blankToUndefined, z.url().default('https://api.intra.42.fr')),
-    DEVICE_TOKEN: z.preprocess(blankToUndefined, z.string().min(1).optional()),
-    BADGE_UID_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    DEVICE_TOKEN: configValue(z.string().min(1)),
+    BADGE_UID_SECRET: configValue(z.string().min(32, 'doit faire au moins 32 caractères')),
     FRONT_URL: z.preprocess(blankToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.CORS_ORIGIN && c.CORS_ORIGIN !== '*'), {

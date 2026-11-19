@@ -85,9 +85,15 @@ user request.
 | `FORTYTWO_API_URL` | no | `https://api.intra.42.fr` | Base URL of the intra API (tests point it at a fake server). A trailing slash is dropped. |
 | `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
 | `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
-| `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. |
+| `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. **At least 32 characters.** |
 
 An empty value (`KEY=`) is treated as unset for the optional keys above.
+`.env.example` leaves the secrets empty on purpose: a value committed to the
+repository is public, and would turn the feature on with a known secret. Generate
+each secret with `openssl rand -hex 32`. A value of the 42 and badge variables
+that still contains an example placeholder such as `<secret>` is **rejected at
+startup**. `DEVICE_TOKEN` has no minimum length, because it is shared with the
+firmware and changing it means reflashing the ESP32.
 
 **Optional features answer `503` when not configured.** The 42 login is enabled
 only when `FORTYTWO_CLIENT_ID`, `FORTYTWO_CLIENT_SECRET` and
