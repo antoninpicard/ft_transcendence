@@ -13,4 +13,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node src/db/migrate.js && node src/server.js"]
+CMD ["sh", "-c", "node src/db/migrate.js && exec node src/server.js"]
