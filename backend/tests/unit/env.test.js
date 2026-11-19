@@ -12,6 +12,7 @@ function load(vars) {
 process.stdout.write(JSON.stringify({
   fortyTwoConfigured: env.fortyTwoConfigured,
   badgeConfigured: env.badgeConfigured,
+  badgeLoginAllowedIps: [...env.badgeLoginAllowedIps],
 }));`;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     env: {
@@ -33,7 +34,11 @@ describe('configuration', () => {
   it('démarre sans les variables optionnelles', () => {
     const { status, config } = load({});
     assert.equal(status, 0);
-    assert.deepEqual(config, { fortyTwoConfigured: false, badgeConfigured: false });
+    assert.deepEqual(config, {
+      fortyTwoConfigured: false,
+      badgeConfigured: false,
+      badgeLoginAllowedIps: [],
+    });
   });
 
   it('traite une valeur vide comme absente', () => {
@@ -43,9 +48,14 @@ describe('configuration', () => {
       FORTYTWO_REDIRECT_URI: '',
       DEVICE_TOKEN: '',
       BADGE_UID_SECRET: '',
+      BADGE_LOGIN_ALLOWED_IPS: '',
     });
     assert.equal(status, 0);
-    assert.deepEqual(config, { fortyTwoConfigured: false, badgeConfigured: false });
+    assert.deepEqual(config, {
+      fortyTwoConfigured: false,
+      badgeConfigured: false,
+      badgeLoginAllowedIps: [],
+    });
   });
 
   it('active la badgeuse avec un secret de 32 caractères et un jeton court', () => {
@@ -66,6 +76,7 @@ describe('configuration', () => {
     'FORTYTWO_REDIRECT_URI',
     'DEVICE_TOKEN',
     'BADGE_UID_SECRET',
+    'BADGE_LOGIN_ALLOWED_IPS',
   ]) {
     it(`refuse une valeur d'exemple dans ${key}`, () => {
       const placeholder = `<valeur_a_remplacer_${'x'.repeat(32)}>`;
@@ -82,5 +93,21 @@ describe('configuration', () => {
     });
     assert.equal(status, 1);
     assert.match(stderr, /FORTYTWO_REDIRECT_URI/);
+  });
+
+  it('normalise la liste des adresses de la borne', () => {
+    const { status, config } = load({
+      BADGE_LOGIN_ALLOWED_IPS: ' 10.0.0.7 ,::ffff:192.168.1.20,, 2001:DB8:0:0:0:0:0:7 ',
+    });
+    assert.equal(status, 0);
+    assert.deepEqual(config.badgeLoginAllowedIps, ['10.0.0.7', '192.168.1.20', '2001:db8::7']);
+  });
+
+  it('refuse une liste qui contient autre chose qu une adresse IP', () => {
+    for (const value of ['10.0.0.7, borne.local', '10.0.0.0/24']) {
+      const { status, stderr } = load({ BADGE_LOGIN_ALLOWED_IPS: value });
+      assert.equal(status, 1, value);
+      assert.match(stderr, /BADGE_LOGIN_ALLOWED_IPS/);
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeIp, parseIpList, splitIpList } from '../utils/ip.js';
 
 const blankToUndefined = (v) => (v === '' ? undefined : v);
 
@@ -25,6 +26,14 @@ const schema = z
     FORTYTWO_API_URL: z.preprocess(blankToUndefined, z.url().default('https://api.intra.42.fr')),
     DEVICE_TOKEN: configValue(z.string().min(1)),
     BADGE_UID_SECRET: configValue(z.string().min(32, 'doit faire au moins 32 caractères')),
+    BADGE_LOGIN_ALLOWED_IPS: configValue(
+      z
+        .string()
+        .min(1)
+        .refine((list) => splitIpList(list).every((entry) => normalizeIp(entry) !== null), {
+          message: "doit être une liste d'adresses IP séparées par des virgules",
+        }),
+    ),
     FRONT_URL: z.preprocess(blankToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.CORS_ORIGIN && c.CORS_ORIGIN !== '*'), {
@@ -53,6 +62,7 @@ export const env = {
       parsed.data.FORTYTWO_REDIRECT_URI,
   ),
   badgeConfigured: Boolean(parsed.data.DEVICE_TOKEN && parsed.data.BADGE_UID_SECRET),
+  badgeLoginAllowedIps: parseIpList(parsed.data.BADGE_LOGIN_ALLOWED_IPS),
   isProd: parsed.data.NODE_ENV === 'production',
   corsOrigins:
     corsOrigin === '*'

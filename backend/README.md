@@ -86,6 +86,7 @@ user request.
 | `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
 | `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
 | `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. **At least 32 characters.** |
+| `BADGE_LOGIN_ALLOWED_IPS` | no | — | Comma-separated IP addresses (spaces allowed) of the kiosk PC, the only machines allowed to log in with a badge, e.g. `10.11.12.13`. IPv4-mapped IPv6 (`::ffff:10.11.12.13`) and IPv6 written in any form are normalised; anything that is not an IP address (host name, CIDR range) is rejected at startup. Empty: badge login answers `503`. In development, `127.0.0.1,::1`. |
 
 An empty value (`KEY=`) is treated as unset for the optional keys above.
 `.env.example` leaves the secrets empty on purpose: a value committed to the
@@ -100,8 +101,11 @@ only when `FORTYTWO_CLIENT_ID`, `FORTYTWO_CLIENT_SECRET` and
 `FORTYTWO_REDIRECT_URI` are **all** set; otherwise `GET /api/auth/42` and
 `GET /api/auth/42/callback` respond `503`. The badge reader is enabled only when
 **both** `DEVICE_TOKEN` and `BADGE_UID_SECRET` are set; otherwise every
-`/api/badge` route, `POST /api/hello` and `POST /api/scan` respond `503`. The
-rest of the API is unaffected.
+`/api/badge` route, `POST /api/hello` and `POST /api/scan` respond `503`. Badge
+login additionally needs `BADGE_LOGIN_ALLOWED_IPS`: without it
+`POST /api/badge/login` and `POST /api/badge/login/confirm` respond `503` —
+badge login is then disabled, never open to everyone. The rest of the API is
+unaffected.
 
 Real values live in `.env` **at the repository root**, which is git-ignored.
 `.env.example` sits beside it, is committed, and documents every key — copy it
@@ -177,8 +181,10 @@ src/
 ├── schemas/               # zod schemas, shared with the frontend
 ├── controllers/           # request in, response out
 ├── services/              # business logic and SQL
-├── middlewares/           # validate, notFound, methodNotAllowed, errorHandler
-└── utils/AppError.js      # business errors carrying an HTTP status
+├── middlewares/           # validate, notFound, methodNotAllowed, errorHandler, auth and badge guards
+└── utils/
+    ├── AppError.js        # business errors carrying an HTTP status
+    └── ip.js              # IP address normalisation (badge kiosk allowlist)
 
 tests/
 ├── unit/http.test.js      # node --test against createApp(), no network, no DB
@@ -604,8 +610,8 @@ All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
 | Route | Auth | Responses |
 |---|---|---|
 | `POST /badge/pairing` | session | `200` `{ "code" }`, `401`, `409` |
-| `POST /badge/login` | none | `200` `{ "code" }`, `409`, `429` |
-| `POST /badge/login/confirm` | none | `200` the authenticated user + session cookie, `400`, `401` |
+| `POST /badge/login` | kiosk address | `200` `{ "code" }`, `403`, `409`, `429`, `503` |
+| `POST /badge/login/confirm` | kiosk address | `200` the authenticated user + session cookie, `400`, `401`, `403`, `503` |
 | `GET /badge` | session | `200` `{ "linked": boolean }`, `401` |
 | `DELETE /badge` | session | `204`, `401` |
 
@@ -613,6 +619,16 @@ All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
   badge is linked to the authenticated account. A badge already linked to the
   account is replaced. Starting a pairing cancels a pending anonymous login
   window; it answers `409` only when another pairing is in progress.
+- **Badge login is reserved to the kiosk.** Badges are physical and badge login
+  happens from one known, fixed PC, so `POST /badge/login` and
+  `POST /badge/login/confirm` are accepted only from an address listed in
+  `BADGE_LOGIN_ALLOWED_IPS`: `403` from any other address, `503` when the
+  variable is unset. The address is `req.ip` (see
+  [Rate limiting](#rate-limiting) for how it is read), with an IPv4-mapped
+  `::ffff:` prefix removed. The check runs after the `503` of an unconfigured
+  badge reader and before body validation. Pairing, status, unlinking, the
+  device routes and the WebSocket are not restricted: pairing already needs a
+  session, and the `code` of a login window is only ever handed to the kiosk.
 - **`POST /badge/login`** opens a 30-second anonymous window in which the next
   scanned badge logs in. `409` if any badge action is already in progress.
 - **`POST /badge/login/confirm`** takes `{ "token": "…" }`, the one-time token

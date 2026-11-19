@@ -142,8 +142,10 @@ X-Device-Token: {{deviceToken}}
 # Only one badge action exists at a time: a login window answers 409 while a pairing
 # is open, and a pairing answers 409 while another pairing is open. Scanning a
 # badge or waiting 30 s frees the reader. A pairing does replace a pending login window.
+# Badge login (start and confirm) is accepted only from BADGE_LOGIN_ALLOWED_IPS: set it to
+# 127.0.0.1,::1 in .env to run these two requests locally (403 otherwise, 503 when unset).
 
-### Start a badge login — 200 { code }, anonymous, limited to 1 per 10 s (429 beyond); 409 while another action is open
+### Start a badge login — 200 { code }, kiosk address only, limited to 1 per 10 s (429 beyond); 409 while another action is open
 POST {{host}}/api/badge/login
 
 > {%
@@ -281,3 +283,13 @@ Content-Type: application/json
 {
   "token": "unknown"
 }
+
+### 403 — badge login from an address outside BADGE_LOGIN_ALLOWED_IPS (simulated through the proxy header)
+POST {{host}}/api/badge/login
+X-Forwarded-For: 203.0.113.9
+
+> {%
+    client.test("not the kiosk", function () {
+        client.assert(response.status === 403, "expected 403, got " + response.status);
+    });
+%}

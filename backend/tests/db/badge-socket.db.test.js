@@ -1,5 +1,6 @@
 process.env.DEVICE_TOKEN = 'jeton-appareil-de-test';
 process.env.BADGE_UID_SECRET = 'secret-uid-de-test-0123456789abcdef';
+process.env.BADGE_LOGIN_ALLOWED_IPS = '127.0.0.1';
 
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,5 +1,6 @@
 process.env.DEVICE_TOKEN = 'jeton-appareil-de-test';
 process.env.BADGE_UID_SECRET = 'secret-uid-de-test-0123456789abcdef';
+process.env.BADGE_LOGIN_ALLOWED_IPS = '127.0.0.1';
 
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,10 +39,11 @@ function randomUid() {
   return randomBytes(7).toString('hex').toUpperCase();
 }
 
-async function call(method, path, { body, cookie, device, url = base } = {}) {
+async function call(method, path, { body, cookie, device, ip, url = base } = {}) {
   const headers = { 'content-type': 'application/json' };
   if (cookie) headers.cookie = cookie;
   if (device) headers['x-device-token'] = device;
+  if (ip) headers['x-forwarded-for'] = ip;
   const res = await fetch(`${url}${path}`, {
     method,
     headers,
@@ -179,6 +181,36 @@ describe('routes de la badgeuse', () => {
 
     const bad = await call('POST', '/api/badge/login/confirm', { body: { token: { a: 1 } } });
     assert.equal(bad.res.status, 400);
+  });
+
+  it('refuse la confirmation hors de la borne même avec un jeton valide', async () => {
+    const cookie = await register();
+    const uid = randomUid();
+    await link(cookie, uid);
+    const start = await call('POST', '/api/badge/login');
+    assert.equal(start.res.status, 200);
+    const received = [];
+    app.locals.badgeActions.attachSocket(start.json.code, {
+      send: (msg) => received.push(JSON.parse(msg)),
+      close: () => {},
+    });
+    await scan(uid);
+    const { token } = received[0];
+
+    const foreign = await call('POST', '/api/badge/login/confirm', {
+      body: { token },
+      ip: '203.0.113.9',
+    });
+    assert.equal(foreign.res.status, 403);
+    assert.equal(foreign.res.headers.getSetCookie().length, 0);
+
+    const kiosk = await call('POST', '/api/badge/login/confirm', { body: { token } });
+    assert.equal(kiosk.res.status, 200);
+  });
+
+  it('refuse le démarrage d une connexion par badge hors de la borne', async () => {
+    const { res } = await call('POST', '/api/badge/login', { ip: '203.0.113.9' });
+    assert.equal(res.status, 403);
   });
 
   it('ne renvoie jamais l UID ni son hash', async () => {
