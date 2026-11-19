@@ -1,5 +1,6 @@
 import { env } from './config/env.js';
 import { createApp } from './app.js';
+import { attachBadgeSocket } from './realtime/badgeSocket.js';
 import { checkConnection, closePool } from './db/pool.js';
 
 try {
@@ -11,9 +12,12 @@ try {
   process.exit(1);
 }
 
-const server = createApp().listen(env.PORT, () => {
+const app = createApp();
+const server = app.listen(env.PORT, () => {
   console.log(`API à l'écoute sur http://localhost:${server.address().port} (${env.NODE_ENV})`);
 });
+
+attachBadgeSocket(server, app.locals.badgeActions);
 
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
