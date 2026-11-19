@@ -1,0 +1,7 @@
+**/.env
+**/node_modules
+.git
+.idea
+.superpowers
+backend
+webapp/backend

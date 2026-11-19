@@ -56,8 +56,9 @@ if (!process.argv.includes('--yes')) {
 }
 
 const REDIRECTING_VARS = ['DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'];
-const COMPOSE_FILE = new URL('../../../docker-compose.yml', import.meta.url).pathname;
-const COMPOSE_PROJECT = 'trans';
+const COMPOSE_FILE = new URL('../../../contbuild/docker-compose.yml', import.meta.url).pathname;
+const COMPOSE_PROJECT = 'contbuild';
+const DB_VOLUME = `${COMPOSE_PROJECT}_db-data`;
 
 function dockerEnv() {
   const clean = { ...process.env };
@@ -76,7 +77,8 @@ function docker(...args) {
 
 const compose = ['compose', '-f', COMPOSE_FILE, '-p', COMPOSE_PROJECT];
 
-docker(...compose, 'down', '-v');
+docker(...compose, 'rm', '--stop', '--force', 'db');
+docker('volume', 'rm', '--force', DB_VOLUME);
 docker(...compose, 'up', '-d', 'db');
 
 console.log(`\n✓ Base « ${target} » réinitialisée. Prochaine étape : npm run migrate`);

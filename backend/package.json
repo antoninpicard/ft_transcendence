@@ -5,13 +5,13 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch --env-file=../.env src/server.js",
-    "migrate": "node --env-file=../.env src/db/migrate.js",
-    "db:up": "docker compose -f ../docker-compose.yml up -d db",
-    "db:down": "docker compose -f ../docker-compose.yml down",
-    "db:reset": "node --env-file-if-exists=../.env src/db/reset.js",
+    "dev": "node --watch --env-file=../contbuild/.env src/server.js",
+    "migrate": "node --env-file=../contbuild/.env src/db/migrate.js",
+    "db:up": "docker compose -f ../contbuild/docker-compose.yml up -d db",
+    "db:down": "docker compose -f ../contbuild/docker-compose.yml stop db",
+    "db:reset": "node --env-file-if-exists=../contbuild/.env src/db/reset.js",
     "test": "NODE_ENV=test DATABASE_URL=postgresql://unused@127.0.0.1:5432/unused node --test 'tests/unit/**/*.test.js'",
-    "test:db": "NODE_ENV=test node --env-file=../.env --test 'tests/db/**/*.test.js'"
+    "test:db": "NODE_ENV=test node --env-file=../contbuild/.env --test 'tests/db/**/*.test.js'"
   },
   "author": "",
   "license": "MIT",
