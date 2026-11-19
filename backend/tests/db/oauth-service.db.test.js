@@ -105,4 +105,30 @@ describe('findOrCreateFortyTwoUser', () => {
     assert.notEqual(user.username, login);
     assert.ok(user.username.length <= 20);
   });
+
+  it("ne renvoie pas un 409 quand aucun pseudo n'est disponible", async () => {
+    const p = profile();
+    await query(`
+      CREATE FUNCTION test_oauth_force_username_conflict() RETURNS trigger AS $$
+      BEGIN
+        IF NEW.fortytwo_id = ${p.fortytwoId} THEN
+          RAISE EXCEPTION 'conflit simulé' USING ERRCODE = '23505', CONSTRAINT = 'users_username_key';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql`);
+    await query(`
+      CREATE TRIGGER test_oauth_force_username_conflict
+      BEFORE INSERT ON users
+      FOR EACH ROW EXECUTE FUNCTION test_oauth_force_username_conflict()`);
+    try {
+      await assert.rejects(
+        findOrCreateFortyTwoUser(p),
+        (err) => err.statusCode !== 409 && err.statusCode >= 500,
+      );
+    } finally {
+      await query('DROP TRIGGER test_oauth_force_username_conflict ON users');
+      await query('DROP FUNCTION test_oauth_force_username_conflict()');
+    }
+  });
 });
