@@ -79,6 +79,23 @@ user request.
 | `POSTGRES_USER` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
 | `POSTGRES_PASSWORD` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
 | `POSTGRES_DB` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
+| `FORTYTWO_CLIENT_ID` | no | — | UID of the 42 application. |
+| `FORTYTWO_CLIENT_SECRET` | no | — | Secret of the 42 application. |
+| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application, e.g. `http://localhost:3000/api/auth/42/callback`. |
+| `FORTYTWO_API_URL` | no | `https://api.intra.42.fr` | Base URL of the intra API (tests point it at a fake server). A trailing slash is dropped. |
+| `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
+| `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
+| `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. |
+
+An empty value (`KEY=`) is treated as unset for the optional keys above.
+
+**Optional features answer `503` when not configured.** The 42 login is enabled
+only when `FORTYTWO_CLIENT_ID`, `FORTYTWO_CLIENT_SECRET` and
+`FORTYTWO_REDIRECT_URI` are **all** set; otherwise `GET /api/auth/42` and
+`GET /api/auth/42/callback` respond `503`. The badge reader is enabled only when
+**both** `DEVICE_TOKEN` and `BADGE_UID_SECRET` are set; otherwise every
+`/api/badge` route, `POST /api/hello` and `POST /api/scan` respond `503`. The
+rest of the API is unaffected.
 
 Real values live in `.env` **at the repository root**, which is git-ignored.
 `.env.example` sits beside it, is committed, and documents every key — copy it
@@ -114,7 +131,7 @@ a service instead.
 client
   │
   ▼
-app.js         helmet → cors → express.json(100kb) → morgan
+app.js         helmet → cors → express.json(100kb) → cookieParser → morgan → rate limits
   │
   ▼
 routes/        matches the URL, runs validate({ body, params, query })
@@ -149,6 +166,7 @@ src/
 │   ├── migrate.js         # migration runner
 │   ├── reset.js           # guarded database reset
 │   └── migrations/*.sql   # schema, versioned, applied in filename order
+├── realtime/badgeSocket.js # WebSocket (`/ws`) that reports badge results to the browser
 ├── routes/                # URLs, wired to schemas and controllers
 ├── schemas/               # zod schemas, shared with the frontend
 ├── controllers/           # request in, response out
@@ -161,7 +179,7 @@ tests/
 └── db/*.db.test.js        # node --test against a real Postgres, run with `npm run test:db`
 ```
 
-`app.js` exports `createApp()` — a factory — instead of starting a server.
+`app.js` exports `createApp({ rateLimit })` — a factory — instead of starting a server.
 Network listening lives in `server.js`. This separation is what lets the test
 suite exercise the whole HTTP stack without opening a fixed port or a database
 connection.
@@ -344,6 +362,8 @@ throw AppError.conflict('This username is already taken');
 | `AppError.notFound(message)` | 404 |
 | `AppError.methodNotAllowed(message)` | 405 |
 | `AppError.conflict(message, details)` | 409 |
+| `AppError.tooManyRequests(message)` | 429 |
+| `AppError.serviceUnavailable(message)` | 503 |
 
 ### What reaches the client
 
@@ -375,10 +395,11 @@ the logs.
 | `403` | authenticated, but not the resource owner |
 | `404` | unknown route, or missing resource |
 | `405` | known path, unsupported method — carries an `Allow` header |
-| `409` | unique constraint violated |
+| `409` | unique constraint violated, or a badge action is already in progress |
 | `413` | request body larger than 100 kB |
+| `429` | rate limit exceeded (see [Rate limiting](#rate-limiting)) |
 | `500` | unexpected server error |
-| `503` | `/api/health` only — the database is unreachable |
+| `503` | `/api/health` — the database is unreachable; or an optional feature (42 login, badge reader) is not configured |
 
 ### Conflicts are arbitrated by the database
 
@@ -516,6 +537,131 @@ session cookie. Returns `401` if unauthenticated.
 `username`, `createdAt` — with no email address. `PATCH` and `DELETE` require a
 session and reject anyone but the account owner with a `403`.
 
+### `GET /auth/42`
+
+Starts the 42 login. Sets a short-lived `oauth_state` cookie (`HttpOnly`,
+`SameSite=Lax`, path `/api/auth/42`, 10 minutes) holding a random anti-CSRF
+`state`, then redirects (`302`) to the 42 authorize URL. Responds `503` if the
+42 variables are not all set.
+
+### `GET /auth/42/callback`
+
+The URL registered as `FORTYTWO_REDIRECT_URI`. 42 sends the browser back here
+with `code` and `state` (or `error`). The `state` is compared with the cookie,
+the code is exchanged for a token, the profile is fetched, the local account is
+found or created, and the same `sid` session cookie as a password login is
+opened. The browser is then redirected (`302`) to the frontend:
+
+- success: `FRONT_URL/home`;
+- failure: `FRONT_URL/login?oauth_error=<code>`.
+
+| `oauth_error` | Meaning |
+|---|---|
+| `oauth_state` | `state` missing, or different from the `oauth_state` cookie; also a missing `code` |
+| `oauth_denied` | the user refused on 42 (the query carries `error`) |
+| `oauth_email_taken` | the 42 email already belongs to another account |
+| `oauth_unavailable` | 42 unreachable, slow or in error, no email on the 42 profile, or any other failure |
+
+Only a `503` (42 login not configured) is answered as JSON instead of a
+redirect. The callback is excluded from the request logs, because its URL
+carries the one-time `code`.
+
+### `POST /hello`
+
+Device route, called by the ESP32 to announce itself. Requires the
+`X-Device-Token` header. Responds `200` `{ "message": "Bonjour" }`.
+
+### `POST /scan`
+
+Device route, called by the ESP32 for every scanned badge. Requires the
+`X-Device-Token` header.
+
+```json
+{ "uid": "04A1B2C3D4E5F6" }
+```
+
+`uid` is 8 to 20 hexadecimal characters (`400` otherwise). The UID is hashed
+with `BADGE_UID_SECRET` and never stored in clear.
+
+Once the token is accepted, **every business outcome is a `200`** with a French
+`message`, so the firmware never has to interpret an error: badge paired, badge
+already linked to an account, login ready, unknown badge, or no badge action in
+progress. What happened is reported to the browser through the
+[WebSocket](#websocket-ws). Error statuses are limited to `401` (missing or
+wrong token), `400` (invalid body) and `503` (badge reader not configured).
+
+### Badge routes (browser)
+
+All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
+(checked before authentication).
+
+| Route | Auth | Responses |
+|---|---|---|
+| `POST /badge/pairing` | session | `200` `{ "code" }`, `401`, `409` |
+| `POST /badge/login` | none | `200` `{ "code" }`, `409`, `429` |
+| `POST /badge/login/confirm` | none | `200` the authenticated user + session cookie, `400`, `401` |
+| `GET /badge` | session | `200` `{ "linked": boolean }`, `401` |
+| `DELETE /badge` | session | `204`, `401` |
+
+- **`POST /badge/pairing`** opens a 30-second window in which the next scanned
+  badge is linked to the authenticated account. A badge already linked to the
+  account is replaced. Starting a pairing cancels a pending anonymous login
+  window; it answers `409` only when another pairing is in progress.
+- **`POST /badge/login`** opens a 30-second anonymous window in which the next
+  scanned badge logs in. `409` if any badge action is already in progress.
+- **`POST /badge/login/confirm`** takes `{ "token": "…" }`, the one-time token
+  received over the WebSocket. It is valid for 10 seconds and can be used once;
+  otherwise `401`. On success the response is the same private user as
+  `GET /auth/me`, with a `sid` session cookie.
+- **`GET /badge`** says whether the account has a badge; **`DELETE /badge`**
+  unlinks it (idempotent).
+
+Only one badge action exists at a time, because there is a single reader.
+
+### WebSocket `/ws`
+
+The browser learns the outcome of a pairing or a login window here. The
+connection is served by the same HTTP server and port as the API.
+
+1. Call `POST /api/badge/pairing` or `POST /api/badge/login` and keep the `code`.
+2. Open `ws://<host>/ws` and send **one** JSON message: `{ "code": "<code>" }`.
+3. The server replies with **one** message, then closes the connection:
+   `{ "status": "<status>" }`, or `{ "status": "login-ready", "token": "<token>" }`.
+4. For a login, send the `token` to `POST /api/badge/login/confirm`.
+
+| `status` | Meaning |
+|---|---|
+| `paired` | the badge was linked to the account |
+| `already-linked` | the badge belongs to another account; nothing changed |
+| `login-ready` | a known badge was scanned; comes with `token` |
+| `unknown-badge` | the badge is linked to no account |
+| `not-pairing` | the account disappeared before the badge was linked |
+
+The result is kept for 5 seconds if the scan happens before the socket is
+attached, so a fast scan is not lost.
+
+The server closes the socket **without any message** when: the first message is
+not JSON with a non-empty string `code` (messages are limited to 1 kB), the
+`code` is unknown, expired or already taken by another socket, no first message
+arrives within 10 seconds, the 30-second window expires, or 35 seconds have
+elapsed in total.
+
+### Rate limiting
+
+Per client IP, counted in memory, answered with `429` in the usual error format
+(French message) plus the standard `RateLimit-*` headers:
+
+| Route | Limit |
+|---|---|
+| `POST /auth/login` | 10 per minute |
+| `POST /auth/register` | 5 per minute |
+| `POST /badge/login` | 1 per 10 seconds |
+
+`trust proxy` is set to `1`, so the IP is read from `X-Forwarded-For` as set by
+the single reverse proxy in front of the API. Rate limiting is **off by default
+when `NODE_ENV=test`**, so the suites can chain logins freely; `createApp({
+rateLimit: true })` turns it on (the rate-limit test does).
+
 ### `GET /users/:id`
 
 Returns the user, or `404`. `:id` must be a UUID, otherwise `400`.
@@ -623,9 +769,24 @@ registration, login, `me`, the public directory, an owner `PATCH`, logout, and
 the documented failure modes; the register request stores the created id and
 session cookie so the following requests reuse them.
 
+It also covers the 42 login start, the device routes (`/hello`, `/scan`) and
+the badge routes.
+
 Pick the environment (`dev` or `docker`) from the selector at the top right;
 values live in `requests/http-client.env.json`. Secrets belong in
-`requests/http-client.private.env.json`, which is git-ignored.
+`requests/http-client.private.env.json`, which is git-ignored. The device
+requests use a `{{deviceToken}}` variable that must match `DEVICE_TOKEN`: define
+it there, for each environment:
+
+```json
+{
+  "dev": { "deviceToken": "<same value as DEVICE_TOKEN in .env>" }
+}
+```
+
+`GET /auth/42` answers with a redirect to 42, so the client follows it; run it
+from a browser to complete the whole flow. The WebSocket cannot be exercised
+from this file: use a browser, or a tool such as `websocat`.
 
 ---
 
@@ -641,12 +802,29 @@ values live in `requests/http-client.env.json`. Secrets belong in
 
 ---
 
+## Known limitations
+
+- **Pairing hijack by physical presence.** If someone scans their own badge
+  during the 30 seconds in which you pair yours, their badge is linked to your
+  account and they can then log in as you. This is inherent to the "next scan
+  wins" model.
+- **Anonymous login windows block each other.** While one `POST /badge/login`
+  window is open, another one gets `409`. The rate limit (one window per 10
+  seconds per IP) reduces the abuse without removing it.
+- **Badge state lives in memory.** Pending windows, results and login tokens
+  exist only inside one API process: run a single instance.
+- **The physical ESP32 cannot reach the API yet.** It needs the team's WAF in
+  place (it listens on 8443 while the firmware targets 3000) and the
+  `transcendence.local` name announced on the network. Until then, test the
+  device routes with `requests/api.http` or `curl`.
+
+---
+
 ## Not implemented yet
 
 | Area | Plan |
 |---|---|
-| Rate limiting | `express-rate-limit`, primarily on login and on the public API. |
 | HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
 | Containerisation | `Dockerfile` (multi-stage, non-root user) plus `.dockerignore`, added as a service to the root `docker-compose.yml`, which currently declares only `db`. |
-| Real-time | `ws` mounted on the HTTP server created in `server.js`, reusing the existing services. |
+| Real-time (game, chat) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; other real-time features will reuse it. |
 | Linting | ESLint + Prettier, to be agreed on before several people commit. |
