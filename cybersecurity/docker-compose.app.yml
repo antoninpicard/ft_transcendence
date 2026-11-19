@@ -11,3 +11,10 @@ services:
     networks:
       - default
       - vault-net
+
+  nginx:
+    # In the integrated stack, the WAF protects the real app (not the whoami test backend)
+    environment:
+      BACKEND: http://app:3000
+    depends_on:
+      - app
