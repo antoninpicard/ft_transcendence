@@ -4,7 +4,19 @@
 
 ## Description
 
-TODO (team): project name, goal and key features.
+TODO (team): project name and goal.
+
+ft_transcendence is a web application where users create an account with an email
+and a password, and can link a physical RFID badge to their account. The badge is
+read by an ESP32 device; once linked, it can be used to log in without typing a
+password.
+
+Key features:
+
+- Sign up and log in with email and password (bcrypt-hashed passwords, server-side sessions).
+- Link, check and unlink an RFID badge from the settings page.
+- Log in by scanning a linked badge, with real-time feedback over WebSocket.
+- HTTPS only, behind a Web Application Firewall, with secrets stored in Vault.
 
 The application is served over HTTPS only, behind a Web Application Firewall
 (nginx + ModSecurity + OWASP Core Rule Set). Its secrets are stored in
@@ -67,6 +79,7 @@ Vault cannot be unsealed after a restart.
 | `make re` | `clean` then `make` |
 | `make a_wish` | Show images, containers and app logs |
 | `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app |
+| `bash cybersecurity/vault/tests/vault-isolation-test.sh` | Vault isolation tests (policies and network) |
 
 ### Notes on the Compose setup
 
@@ -87,7 +100,17 @@ TODO (team): work organization, tools, communication channels.
 
 ## Technical Stack
 
-TODO (team): frontend, backend, database and justification.
+- **Frontend:** static HTML pages with plain JavaScript (`webapp/frontend/public/`).
+  TODO (team): CSS framework or styling solution (required by the subject, III.3).
+- **Backend:** Node.js 22 with **Express 5** (`infra/app.js`, `webapp/routes/`).
+  - `express-session`: server-side sessions; the session id is regenerated at login.
+  - `bcrypt`: password hashing (cost 10).
+  - `ws`: WebSocket server, used for the badge pairing and badge login feedback.
+- **Database:** **SQLite** through `better-sqlite3` (`infra/db.js`).
+  TODO (team): why SQLite was chosen.
+- **Device:** an ESP32 with an RFID reader calls `/badge/hello` and `/badge/scan`,
+  authenticated with a shared device token (`DEVICE_TOKEN`, compared in constant time).
+- TODO (team): justification of the major technical choices.
 
 Security layer:
 
@@ -98,11 +121,36 @@ Security layer:
 
 ## Database Schema
 
-TODO (team).
+SQLite database created by `infra/db.js`, with foreign keys enabled.
+
+```
+users                                badges
++---------------+---------+          +-----------+---------+
+| id            | INTEGER | PK  <----| user_id   | INTEGER | FK -> users.id, UNIQUE, ON DELETE CASCADE
+| email         | TEXT    | UNIQUE   | id        | INTEGER | PK
+| password_hash | TEXT    |          | uid_hash  | TEXT    | UNIQUE
++---------------+---------+          +-----------+---------+
+```
+
+- `users`: one row per account. Only the bcrypt hash of the password is stored.
+- `badges`: at most one badge per user (`user_id` is unique) and one user per badge
+  (`uid_hash` is unique). Only a hash of the badge UID is stored. Deleting a user
+  deletes their badge link.
 
 ## Features List
 
-TODO (team).
+TODO (team): which member(s) worked on each feature.
+
+| Feature | Description |
+|---|---|
+| Sign up | `POST /auth/signup`: validates the email format and a password of at least 8 characters, stores a bcrypt hash. |
+| Log in / session | `POST /auth/login`, `GET /auth/me`: checks the credentials and opens a session (session id regenerated). |
+| Badge pairing | `POST /pairing/start`: opens a 30 s window; the next scanned badge is linked to the logged-in user. |
+| Badge login | `POST /badge-login/start`, `POST /badge-login/confirm`: opens a 30 s window; scanning a linked badge gives a one-time token, exchanged for a session. |
+| Badge status / unlink | `GET /badge/status`, `POST /badge/unlink`: shows or removes the user's badge link. |
+| Real-time feedback | WebSocket attached to a pending pairing or login action, only after it proves it knows the action's code. |
+| Device endpoints | `POST /badge/hello`, `POST /badge/scan`: used by the ESP32, protected by `DEVICE_TOKEN`. |
+| WAF and Vault | See the Cybersecurity module below. |
 
 ## Modules
 
@@ -155,7 +203,10 @@ browser --HTTPS:8443--> nginx + ModSecurity (WAF) --HTTP--> app:3000 --HTTP--> v
 **Tests:** `waf/tests/waf-test.sh` (WAF alone, with the `whoami` test backend) and
 `waf/tests/waf-app-test.sh` (integrated app): legitimate traffic must pass, SQL
 injection, XSS, path traversal, command injection, scanner user agents and access to
-sensitive files must be blocked.
+sensitive files must be blocked. `vault/tests/vault-isolation-test.sh` checks that the
+app reads its own secret (200) but gets 403 on the backend secret, on writes and on
+Vault administration paths; that the backend gets 403 on the app secret; and that the
+WAF cannot resolve Vault, which has no Internet access. It prints status codes only.
 
 **Known limitations:**
 
@@ -170,14 +221,32 @@ sensitive files must be blocked.
   would be split between several people and the root token revoked.
 - Traffic between the app and Vault is not encrypted. The subject allows this for
   connections inside the backend (III.3); the secrets themselves are encrypted at rest.
+- The WAF image adds CORS headers with permissive default values
+  (`Access-Control-Allow-Headers: *` on every response, `Access-Control-Allow-Origin: *`
+  on 403 responses). They can be restricted with the image's `CORS_HEADER_*` variables.
 
 ## Individual Contributions
 
 TODO (team): each member's contributions.
 
-- <login>: Cybersecurity module (WAF configuration and tests, Vault setup, bootstrap
-  script, app integration through `vault-exec.js`, single-command startup in the
-  Makefile). Challenges: TODO.
+- **allefran**: Cybersecurity module (WAF configuration and tests, Vault setup,
+  bootstrap script, app integration through `vault-exec.js`, isolation tests,
+  single-command startup in the Makefile). Challenges:
+  - The WAF logged attacks but did not block them: the Compose file still said
+    `DetectionOnly`. Lesson: check the configuration Docker really uses
+    (`docker compose config`, `docker inspect`), not the file in the editor.
+  - Requests failed right after `docker compose up` (`SSL_ERROR_SYSCALL`): nginx was
+    not ready yet. The tests now wait for the container to be healthy.
+  - The audit log copied request and response bodies, including passwords. Removing
+    the body parts (`MODSEC_AUDIT_LOG_PARTS=ABJDFHZ`) fixed most of it; the copy of
+    the matched value in `data`/`match` remains and is documented above.
+  - `vault status` exits with code 2 when Vault is sealed. With `set -o pipefail`,
+    this silently broke the unseal step of the bootstrap script; the status is now
+    captured with `|| true` before being tested.
+  - With several Compose files, the first one sets the project directory and name.
+    The order was chosen so that the Vault data volume stays the same.
+  - A fresh clone has no TLS certificate (it is ignored by Git): `make` now creates
+    one, readable by the nginx user of the container.
 
 ## Resources
 
