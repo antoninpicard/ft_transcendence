@@ -89,6 +89,19 @@ describe('service d authentification', () => {
     assert.equal(wrong.message, unknown.message);
   });
 
+  it('refuse un compte sans mot de passe comme un mauvais mot de passe', async () => {
+    const user = uniqueUser();
+    created.push(user.username);
+    await queryOne(
+      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, NULL) RETURNING id',
+      [user.username, user.email],
+    );
+    const err = await verifyCredentials(user.email, 'nimporte-quoi').catch((e) => e);
+    const wrong = await verifyCredentials('absent@example.test', 'nimporte-quoi').catch((e) => e);
+    assert.equal(err.statusCode, 401);
+    assert.equal(err.message, wrong.message);
+  });
+
   it('refuse un pseudo déjà pris', async () => {
     const user = await registered();
     const err = await register({ ...uniqueUser(), username: user.username }).catch((e) => e);

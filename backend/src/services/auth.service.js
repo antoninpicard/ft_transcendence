@@ -37,7 +37,7 @@ export async function verifyCredentials(identifier, password) {
     [identifier],
   );
 
-  if (!row) {
+  if (!row || row.passwordHash === null) {
     await verify(await decoy(), password);
     throw AppError.unauthorized(INVALID_CREDENTIALS);
   }
