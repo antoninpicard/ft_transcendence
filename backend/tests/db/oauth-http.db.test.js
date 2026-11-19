@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 let profile;
 const created = [];
 let closePool;
+let query;
 let uniqueUser, cleanupUsers;
 let intra;
 let server;
@@ -48,7 +49,7 @@ before(async () => {
   process.env.FORTYTWO_API_URL = intraBase;
   delete process.env.FRONT_URL;
 
-  ({ closePool } = await import('../../src/db/pool.js'));
+  ({ closePool, query } = await import('../../src/db/pool.js'));
   ({ uniqueUser, cleanupUsers } = await import('./helpers.js'));
   const { createApp } = await import('../../src/app.js');
   server = createApp().listen(0);
@@ -200,6 +201,32 @@ describe('callback 42', () => {
       assert.ok(cleared, url);
       assert.match(cleared, /oauth_state=;/);
       assert.match(cleared, /Expires=/i);
+    }
+  });
+
+  it('traite un échec de création de session', async () => {
+    const suffix = randomBytes(4).toString('hex');
+    const fn = `test_refuse_session_${suffix}`;
+    const trigger = `test_refuse_session_trg_${suffix}`;
+    await query(`
+      CREATE FUNCTION ${fn}() RETURNS trigger AS $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id AND username = '${profile.login}') THEN
+          RAISE EXCEPTION 'session refusée pour le test';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql`);
+    await query(`CREATE TRIGGER ${trigger} BEFORE INSERT ON sessions FOR EACH ROW EXECUTE FUNCTION ${fn}()`);
+    try {
+      const { state, cookie } = await start();
+      const res = await get(`/api/auth/42/callback?code=ok&state=${state}`, cookie);
+      assert.equal(res.status, 302);
+      assert.equal(res.headers.get('location'), '/login?oauth_error=oauth_unavailable');
+      assert.equal(cookieNamed(res, 'sid'), undefined);
+    } finally {
+      await query(`DROP TRIGGER IF EXISTS ${trigger} ON sessions`);
+      await query(`DROP FUNCTION IF EXISTS ${fn}()`);
     }
   });
 });

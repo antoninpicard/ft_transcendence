@@ -45,24 +45,22 @@ export async function callback(req, res) {
   if (error !== undefined) return failure(res, 'oauth_denied');
   if (typeof code !== 'string' || code === '') return failure(res, 'oauth_state');
 
-  let user;
   try {
     const accessToken = await exchangeCode(code);
     const profile = await fetchProfile(accessToken);
     if (typeof profile.email !== 'string' || profile.email === '') {
       return failure(res, 'oauth_unavailable');
     }
-    user = await findOrCreateFortyTwoUser({
+    const user = await findOrCreateFortyTwoUser({
       fortytwoId: profile.id,
       email: profile.email,
       login: profile.login,
     });
+    await openSession(res, user.id);
+    res.redirect(`${env.FRONT_URL}/home`);
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 409) return failure(res, 'oauth_email_taken');
     console.error('[oauth 42]', err?.name, err?.message);
     return failure(res, 'oauth_unavailable');
   }
-
-  await openSession(res, user.id);
-  res.redirect(`${env.FRONT_URL}/home`);
 }
