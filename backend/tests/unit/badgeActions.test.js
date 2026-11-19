@@ -192,4 +192,56 @@ describe('badgeActions', () => {
   it('exige un compte pour un appairage', () => {
     assert.throws(() => actions.start('pair'));
   });
+
+  it('ferme la socket d\'une action expirée au prochain start', () => {
+    const { code } = actions.start('login');
+    const socket = fakeSocket();
+    actions.attachSocket(code, socket);
+    clock += 30_001;
+    actions.start('login');
+    assert.equal(socket.closed, 1);
+    assert.equal(socket.sent.length, 0);
+  });
+
+  it('ferme la socket d\'une action expirée au prochain scan', async () => {
+    const { code } = actions.start('login');
+    const socket = fakeSocket();
+    actions.attachSocket(code, socket);
+    clock += 30_001;
+    assert.equal(await actions.handleScan(hash), 'not-pairing');
+    assert.equal(socket.closed, 1);
+    assert.equal(socket.sent.length, 0);
+  });
+
+  it('tolère une fermeture qui échoue sur une action expirée', () => {
+    const { code } = actions.start('login');
+    const socket = fakeSocket();
+    socket.close = () => {
+      throw new Error('fermeture impossible');
+    };
+    actions.attachSocket(code, socket);
+    clock += 30_001;
+    assert.doesNotThrow(() => actions.start('login'));
+  });
+
+  it('ferme la socket et propage l\'erreur quand le store échoue', async () => {
+    store.findUserIdByUidHash = async () => {
+      throw new Error('base indisponible');
+    };
+    const { code } = actions.start('login');
+    const socket = fakeSocket();
+    actions.attachSocket(code, socket);
+    await assert.rejects(actions.handleScan(hash), { message: 'base indisponible' });
+    assert.equal(socket.closed, 1);
+    assert.equal(socket.sent.length, 0);
+  });
+
+  it('consomme l\'action quand l\'appairage échoue côté store', async () => {
+    store.linkBadge = async () => {
+      throw new Error('base indisponible');
+    };
+    actions.start('pair', 'u1');
+    await assert.rejects(actions.handleScan(hash), { message: 'base indisponible' });
+    assert.equal(await actions.handleScan(hash), 'not-pairing');
+  });
 });

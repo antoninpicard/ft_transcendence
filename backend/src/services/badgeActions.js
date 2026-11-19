@@ -10,17 +10,20 @@ export function createBadgeActions({ store, now = Date.now }) {
   const pendingResults = new Map();
   const loginTokens = new Map();
 
-  function activeAction() {
-    if (current && current.expiresAt <= now()) current = null;
-    return current;
-  }
-
   function closeQuietly(socket) {
     try {
       socket.close();
     } catch {
       return;
     }
+  }
+
+  function activeAction() {
+    if (current && current.expiresAt <= now()) {
+      if (current.socket) closeQuietly(current.socket);
+      current = null;
+    }
+    return current;
   }
 
   function deliver(socket, result) {
@@ -93,17 +96,22 @@ export function createBadgeActions({ store, now = Date.now }) {
 
     let status;
     let token;
-    if (action.mode === 'pair') {
-      status = await store.linkBadge(action.userId, uidHash);
-      if (status === 'user-gone') status = 'not-pairing';
-    } else {
-      const userId = await store.findUserIdByUidHash(uidHash);
-      if (userId) {
-        status = 'login-ready';
-        token = issueLoginToken(userId);
+    try {
+      if (action.mode === 'pair') {
+        status = await store.linkBadge(action.userId, uidHash);
+        if (status === 'user-gone') status = 'not-pairing';
       } else {
-        status = 'unknown-badge';
+        const userId = await store.findUserIdByUidHash(uidHash);
+        if (userId) {
+          status = 'login-ready';
+          token = issueLoginToken(userId);
+        } else {
+          status = 'unknown-badge';
+        }
       }
+    } catch (err) {
+      if (action.socket) closeQuietly(action.socket);
+      throw err;
     }
 
     publish(action, token ? { status, token } : { status });
