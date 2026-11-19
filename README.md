@@ -38,14 +38,9 @@ newgrp docker
    # edit cybersecurity/vault/secrets/app.env: SESSION_SECRET, DEVICE_TOKEN
    ```
 
-2. **TLS certificate** (self-signed, for local development; ignored by Git):
-
-   ```sh
-   openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
-     -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
-     -keyout cybersecurity/waf/certs/server.key \
-     -out cybersecurity/waf/certs/server.crt
-   ```
+2. **TLS certificate:** nothing to do. If `cybersecurity/waf/certs/server.crt` is
+   missing, `make` creates a self-signed certificate for `localhost` with `openssl`
+   (development only; the certificate and its key are ignored by Git).
 
 3. **Start everything** with a single command:
 
@@ -113,7 +108,7 @@ TODO (team).
 
 | Module | Type | Points | Member(s) |
 |---|---|---|---|
-| Cybersecurity: WAF/ModSecurity (hardened) + HashiCorp Vault for secrets | Major | 2 | <login> |
+| Cybersecurity: WAF/ModSecurity (hardened) + HashiCorp Vault for secrets | Major | 2 | allefran |
 | TODO (team): other modules | | | |
 
 ### Cybersecurity: WAF/ModSecurity + Vault
