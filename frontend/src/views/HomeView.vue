@@ -1,6 +1,6 @@
 <template>
   <section class="content-panel">
-    <h1>Bienvenue au Scratch Club 🍪</h1>
+    <h1>Bienvenue au CLB Private Club 🍪</h1>
     <p v-if="user">Connecté avec le compte <strong>{{ user.email }}</strong>.</p>
     <p>Retrouve ton espace, consulte tes paramètres et découvre les tickets de démonstration.</p>
     <div class="home-actions">

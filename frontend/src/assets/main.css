@@ -513,9 +513,9 @@ body > p {
 	justify-content: space-between;
 	overflow: hidden;
 	padding: 17px 19px;
-	border: 5px double #f7d98e;
+	border: 5px double var(--line);
 	border-radius: 13px;
-	background: linear-gradient(140deg, #9b552b, #d99a52 48%, #814321);
+	background: var(--cream-deep);
 	box-shadow: 0 13px 22px rgba(75, 45, 32, 0.24), inset 0 0 0 2px rgba(255, 245, 210, 0.25);
 	color: #fff7dc;
 	text-align: center;

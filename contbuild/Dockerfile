@@ -21,6 +21,9 @@ RUN npm ci --omit=dev
 # Copier le projet
 COPY . .
 
+# Installer les dépendances Vue et compiler le frontend
+RUN npm run build
+
 
 # ===================================
 # PRODUCTION STAGE

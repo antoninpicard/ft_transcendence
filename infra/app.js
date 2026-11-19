@@ -5,7 +5,6 @@ const session = require('express-session');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -13,16 +12,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Check required environment variables
 if (!process.env.SESSION_SECRET) {
     throw new Error('SESSION_SECRET must be set in the environment');
 }
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -34,10 +30,9 @@ app.use(session({
     }
 }));
 
-// Static files
-app.use(express.static(path.join(__dirname, '../frontend/public'), { index: 'home.html' }));
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDist));
 
-// Routes
 const authRoutes = require('../webapp/routes/auth');
 const badgeRoutes = require('../webapp/routes/badge');
 const pairing = require('../webapp/routes/pairing');
@@ -46,7 +41,6 @@ app.use('/auth', authRoutes);
 app.use('/badge', badgeRoutes);
 app.use('/', pairing.router);
 
-// Health check
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'OK',
@@ -54,16 +48,20 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Create HTTP server
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: '/socket' });
 
-// Connect WebSocket to pairing logic
 pairing.attachWebSocket(wss);
 
-// Start server
+app.use((req, res, next) => {
+    if (req.method !== 'GET' || !req.accepts('html')) return next();
+    if (/^\/(auth|badge|pairing|badge-login|health)(\/|$)/.test(req.path)) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+        if (err) next(err);
+    });
+});
+
 server.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST}:${PORT}`);
 });

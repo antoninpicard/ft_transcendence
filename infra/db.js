@@ -5,16 +5,12 @@ const fs = require('fs');
 const dbPath = process.env.DB_PATH ||
     path.join(__dirname, 'database.sqlite');
 
-// Crée le dossier de la base s'il n'existe pas
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-// Ouvre ou crée la base SQLite
 const db = new Database(dbPath);
 
-// Active les clés étrangères
 db.pragma('foreign_keys = ON');
 
-// Crée les tables si elles n'existent pas
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

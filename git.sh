@@ -1,0 +1,1 @@
+cp -r ../ft_noel/* ../ft_transcendence/.

@@ -1,7 +1,7 @@
 <template>
   <div class="app-shell">
     <header class="site-header">
-      <RouterLink class="site-brand" to="/">Scratch Club 🍪</RouterLink>
+      <RouterLink class="site-brand" to="/">CLB Private Club 🍪</RouterLink>
       <nav aria-label="Navigation principale">
         <RouterLink v-if="isAuthenticated" to="/">Accueil</RouterLink>
         <RouterLink v-if="isAuthenticated" to="/game">Jeux</RouterLink>
