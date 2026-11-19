@@ -10,12 +10,6 @@ import { buildAuthorizeUrl, exchangeCode, fetchProfile } from '../services/forty
 import { findOrCreateFortyTwoUser } from '../services/oauth.service.js';
 import { openSession } from './openSession.js';
 
-function requireConfigured() {
-  if (!env.fortyTwoConfigured) {
-    throw AppError.serviceUnavailable('Connexion avec 42 indisponible');
-  }
-}
-
 function sha256(value) {
   return createHash('sha256').update(value).digest();
 }
@@ -30,15 +24,17 @@ function failure(res, code) {
 }
 
 export function start(_req, res) {
-  requireConfigured();
+  if (!env.fortyTwoConfigured) {
+    throw AppError.serviceUnavailable('Connexion avec 42 indisponible');
+  }
   const state = randomBytes(16).toString('hex');
   res.cookie(OAUTH_STATE_COOKIE, state, oauthStateCookieOptions);
   res.redirect(buildAuthorizeUrl(state));
 }
 
 export async function callback(req, res) {
-  requireConfigured();
   res.clearCookie(OAUTH_STATE_COOKIE, clearOauthStateCookieOptions);
+  if (!env.fortyTwoConfigured) return failure(res, 'oauth_unavailable');
 
   const { state, error, code } = req.query;
   if (!sameState(state, req.cookies?.[OAUTH_STATE_COOKIE])) return failure(res, 'oauth_state');
@@ -48,7 +44,11 @@ export async function callback(req, res) {
   try {
     const accessToken = await exchangeCode(code);
     const profile = await fetchProfile(accessToken);
-    if (typeof profile.email !== 'string' || profile.email === '') {
+    if (
+      !Number.isInteger(profile.id) ||
+      typeof profile.email !== 'string' ||
+      profile.email === ''
+    ) {
       return failure(res, 'oauth_unavailable');
     }
     const user = await findOrCreateFortyTwoUser({

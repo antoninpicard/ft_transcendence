@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 
+const CLIENT_ID = 'client-id-test';
+const CLIENT_SECRET = 'client-secret-test';
+const REDIRECT_URI = 'http://localhost:3000/api/auth/42/callback';
+const ACCESS_TOKEN = 'jeton-de-test';
+const KNOWN_CODES = new Set(['ok', 'fail', 'slow']);
+
 let profile;
 const created = [];
 let closePool;
@@ -13,20 +19,41 @@ let server;
 let base;
 let intraBase;
 
+function reject(res, status, error) {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ error }));
+}
+
+function validTokenRequest(req, form) {
+  return (
+    req.headers['content-type'] === 'application/x-www-form-urlencoded' &&
+    form.get('grant_type') === 'authorization_code' &&
+    form.get('client_id') === CLIENT_ID &&
+    form.get('client_secret') === CLIENT_SECRET &&
+    form.get('redirect_uri') === REDIRECT_URI &&
+    KNOWN_CODES.has(form.get('code'))
+  );
+}
+
 before(async () => {
   intra = createServer((req, res) => {
     if (req.method === 'POST' && req.url === '/oauth/token') {
       let raw = '';
       req.on('data', (chunk) => (raw += chunk));
       req.on('end', () => {
-        const code = new URLSearchParams(raw).get('code') ?? JSON.parse(raw || '{}').code;
+        const form = new URLSearchParams(raw);
+        if (!validTokenRequest(req, form)) {
+          reject(res, 401, 'invalid_client');
+          return;
+        }
+        const code = form.get('code');
         if (code === 'fail') {
           res.writeHead(500).end();
           return;
         }
         const reply = () => {
           res.writeHead(200, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ access_token: 'jeton-de-test', token_type: 'bearer' }));
+          res.end(JSON.stringify({ access_token: ACCESS_TOKEN, token_type: 'bearer' }));
         };
         if (code === 'slow') setTimeout(reply, 6000);
         else reply();
@@ -34,6 +61,10 @@ before(async () => {
       return;
     }
     if (req.method === 'GET' && req.url === '/v2/me') {
+      if (req.headers.authorization !== `Bearer ${ACCESS_TOKEN}`) {
+        reject(res, 401, 'invalid_token');
+        return;
+      }
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(profile));
       return;
@@ -43,9 +74,9 @@ before(async () => {
   await new Promise((resolve) => intra.listen(0, '127.0.0.1', resolve));
   intraBase = `http://127.0.0.1:${intra.address().port}`;
 
-  process.env.FORTYTWO_CLIENT_ID = 'client-id-test';
-  process.env.FORTYTWO_CLIENT_SECRET = 'client-secret-test';
-  process.env.FORTYTWO_REDIRECT_URI = 'http://localhost:3000/api/auth/42/callback';
+  process.env.FORTYTWO_CLIENT_ID = CLIENT_ID;
+  process.env.FORTYTWO_CLIENT_SECRET = CLIENT_SECRET;
+  process.env.FORTYTWO_REDIRECT_URI = REDIRECT_URI;
   process.env.FORTYTWO_API_URL = intraBase;
   delete process.env.FRONT_URL;
 
@@ -97,8 +128,13 @@ describe('démarrage de la connexion 42', () => {
   it('redirige vers l intra avec un state et pose le cookie', async () => {
     const { res, state } = await start();
     assert.equal(res.status, 302);
-    const location = res.headers.get('location');
-    assert.ok(location.startsWith(`${intraBase}/oauth/authorize`));
+    const location = new URL(res.headers.get('location'));
+    assert.equal(location.origin, intraBase);
+    assert.equal(location.pathname, '/oauth/authorize');
+    assert.equal(location.searchParams.get('client_id'), CLIENT_ID);
+    assert.equal(location.searchParams.get('redirect_uri'), REDIRECT_URI);
+    assert.equal(location.searchParams.get('response_type'), 'code');
+    assert.equal(location.searchParams.get('scope'), 'public');
     assert.match(state, /^[0-9a-f]{32}$/);
     const cookie = cookieNamed(res, 'oauth_state');
     assert.ok(cookie.includes(`oauth_state=${state}`));
@@ -185,6 +221,21 @@ describe('callback 42', () => {
     const { state, cookie } = await start();
     const res = await get(`/api/auth/42/callback?code=ok&state=${state}`, cookie);
     assert.equal(res.headers.get('location'), '/login?oauth_error=oauth_unavailable');
+  });
+
+  it('refuse un profil sans identifiant 42 entier', async () => {
+    for (const id of [undefined, '12345', 1.5]) {
+      const suffix = randomBytes(5).toString('hex');
+      profile = { email: `sans-id-${suffix}@example.test`, login: `ft${suffix}` };
+      if (id !== undefined) profile.id = id;
+      created.push(profile.login);
+      const { state, cookie } = await start();
+      const res = await get(`/api/auth/42/callback?code=ok&state=${state}`, cookie);
+      assert.equal(res.headers.get('location'), '/login?oauth_error=oauth_unavailable', String(id));
+      assert.equal(cookieNamed(res, 'sid'), undefined);
+      const { rows } = await query('SELECT 1 FROM users WHERE email = $1', [profile.email]);
+      assert.equal(rows.length, 0, String(id));
+    }
   });
 
   it('efface le cookie state dans tous les cas', async () => {

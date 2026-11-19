@@ -24,8 +24,23 @@ describe('OAuth 42 non configuré', () => {
     assert.equal(res.status, 503);
   });
 
-  it('répond 503 au callback', async () => {
-    const res = await fetch(`${base}/api/auth/42/callback?code=x&state=y`, { redirect: 'manual' });
-    assert.equal(res.status, 503);
+  it('redirige le callback vers oauth_unavailable sans journaliser le code', async () => {
+    const logged = [];
+    const original = console.error;
+    console.error = (...args) => logged.push(args.map(String).join(' '));
+    let res;
+    try {
+      res = await fetch(`${base}/api/auth/42/callback?code=code-secret-du-test&state=y`, {
+        redirect: 'manual',
+        headers: { cookie: 'oauth_state=y' },
+      });
+    } finally {
+      console.error = original;
+    }
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get('location'), '/login?oauth_error=oauth_unavailable');
+    const cleared = res.headers.getSetCookie().find((c) => c.startsWith('oauth_state='));
+    assert.match(cleared, /oauth_state=;/);
+    assert.equal(logged.some((line) => line.includes('code-secret-du-test')), false);
   });
 });

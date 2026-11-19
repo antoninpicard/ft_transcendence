@@ -98,8 +98,9 @@ firmware and changing it means reflashing the ESP32.
 
 **Optional features answer `503` when not configured.** The 42 login is enabled
 only when `FORTYTWO_CLIENT_ID`, `FORTYTWO_CLIENT_SECRET` and
-`FORTYTWO_REDIRECT_URI` are **all** set; otherwise `GET /api/auth/42` and
-`GET /api/auth/42/callback` respond `503`. The badge reader is enabled only when
+`FORTYTWO_REDIRECT_URI` are **all** set; otherwise `GET /api/auth/42` responds
+`503` and `GET /api/auth/42/callback` redirects to
+`/login?oauth_error=oauth_unavailable`. The badge reader is enabled only when
 **both** `DEVICE_TOKEN` and `BADGE_UID_SECRET` are set; otherwise every
 `/api/badge` route, `POST /api/hello` and `POST /api/scan` respond `503`. Badge
 login additionally needs `BADGE_LOGIN_ALLOWED_IPS`: without it
@@ -570,14 +571,15 @@ opened. The browser is then redirected (`302`) to the frontend:
 
 | `oauth_error` | Meaning |
 |---|---|
-| `oauth_state` | `state` missing, or different from the `oauth_state` cookie; also a missing `code` |
-| `oauth_denied` | the user refused on 42 (the query carries `error`) |
+| `oauth_state` | `state` missing, or different from the `oauth_state` cookie; also a missing `code`. Checked first: a callback carrying `error` with a bad `state` gets `oauth_state`, not `oauth_denied` |
+| `oauth_denied` | the user refused on 42 (the query carries `error`), with a valid `state` |
 | `oauth_email_taken` | the 42 email already belongs to another account |
-| `oauth_unavailable` | 42 unreachable, slow or in error, no email on the 42 profile, or any other failure |
+| `oauth_unavailable` | 42 login not configured; 42 unreachable, slow or in error; a 42 profile without an integer `id` or without an email; or any other failure |
 
-Only a `503` (42 login not configured) is answered as JSON instead of a
-redirect. The callback is excluded from the request logs, because its URL
-carries the one-time `code`.
+The callback always answers with a redirect and always clears the
+`oauth_state` cookie, even when the 42 login is not configured: raising an
+error there would log the request URL, which carries the one-time `code`. For
+the same reason the callback is excluded from the request logs.
 
 ### `POST /hello`
 

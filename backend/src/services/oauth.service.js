@@ -58,5 +58,5 @@ export async function findOrCreateFortyTwoUser({ fortytwoId, email, login }) {
     }
   }
 
-  throw new AppError(503, "Impossible de générer un nom d'utilisateur disponible");
+  throw AppError.serviceUnavailable("Impossible de générer un nom d'utilisateur disponible");
 }
