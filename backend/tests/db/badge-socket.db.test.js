@@ -96,11 +96,21 @@ function nextMessage(client) {
 }
 
 async function expectClosed(client, ms = 2000) {
-  if (client.readyState === WebSocket.CLOSED) return;
-  const timer = setTimeout(() => client.terminate(), ms);
-  await once(client, 'close');
-  clearTimeout(timer);
+  let fallback = false;
+  if (client.readyState !== WebSocket.CLOSED) {
+    const timer = setTimeout(() => {
+      fallback = true;
+      client.terminate();
+    }, ms);
+    await once(client, 'close');
+    clearTimeout(timer);
+  }
+  assert.equal(fallback, false, 'le serveur n a pas fermé la socket');
   assert.equal(client.readyState, WebSocket.CLOSED);
+}
+
+function closeCode(client) {
+  return new Promise((resolve) => client.once('close', (code) => resolve(code)));
 }
 
 describe('websocket de la badgeuse', () => {
@@ -168,8 +178,10 @@ describe('websocket de la badgeuse', () => {
 
   it('ferme une socket au message trop gros', async () => {
     const client = await open();
+    const code = closeCode(client);
     client.send(JSON.stringify({ code: 'a'.repeat(2048) }));
     await expectClosed(client);
+    assert.equal(await code, 1009);
   });
 
   it('ferme une socket qui envoie un code inconnu', async () => {
@@ -186,7 +198,9 @@ describe('websocket de la badgeuse', () => {
   it('ferme une socket sans premier message', async () => {
     const extra = await startExtra({ handshakeTimeoutMs: 100 });
     const client = await open(extra.url);
+    const started = Date.now();
     await expectClosed(client);
+    assert.ok(Date.now() - started < 1500);
   });
 
   it('plafonne la durée de vie d une socket en attente', async () => {
