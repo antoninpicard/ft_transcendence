@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { checkConnection } from '../db/pool.js';
 import { usersRouter } from './users.routes.js';
 import { authRouter } from './auth.routes.js';
+import { deviceRouter } from './device.routes.js';
+import { badgeRouter } from './badge.routes.js';
 
 export const apiRouter = Router();
 
@@ -21,3 +23,5 @@ apiRouter.get('/health', async (_req, res) => {
 
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/badge', badgeRouter);
+apiRouter.use(deviceRouter);

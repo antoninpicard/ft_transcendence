@@ -13,6 +13,8 @@ const schema = z
     FORTYTWO_CLIENT_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
     FORTYTWO_REDIRECT_URI: z.preprocess(blankToUndefined, z.string().min(1).optional()),
     FORTYTWO_API_URL: z.preprocess(blankToUndefined, z.url().default('https://api.intra.42.fr')),
+    DEVICE_TOKEN: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    BADGE_UID_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
     FRONT_URL: z.preprocess(blankToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.CORS_ORIGIN && c.CORS_ORIGIN !== '*'), {
@@ -40,6 +42,7 @@ export const env = {
       parsed.data.FORTYTWO_CLIENT_SECRET &&
       parsed.data.FORTYTWO_REDIRECT_URI,
   ),
+  badgeConfigured: Boolean(parsed.data.DEVICE_TOKEN && parsed.data.BADGE_UID_SECRET),
   isProd: parsed.data.NODE_ENV === 'production',
   corsOrigins:
     corsOrigin === '*'

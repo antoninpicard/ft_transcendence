@@ -9,11 +9,14 @@ import { apiRouter } from './routes/index.js';
 import { notFound } from './middlewares/notFound.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { AppError } from './utils/AppError.js';
+import { createBadgeActions } from './services/badgeActions.js';
+import * as badgesService from './services/badges.service.js';
 
 export function createApp({ rateLimit = env.NODE_ENV !== 'test' } = {}) {
   const app = express();
 
   app.set('trust proxy', 1);
+  app.locals.badgeActions = createBadgeActions({ store: badgesService });
 
   app.disable('x-powered-by');
   app.use(helmet());
@@ -31,6 +34,7 @@ export function createApp({ rateLimit = env.NODE_ENV !== 'test' } = {}) {
   if (rateLimit) {
     app.post('/api/auth/login', limiter({ windowMs: 60_000, limit: 10 }));
     app.post('/api/auth/register', limiter({ windowMs: 60_000, limit: 5 }));
+    app.post('/api/badge/login', limiter({ windowMs: 10_000, limit: 1 }));
   }
 
   app.use('/api', noStore, apiRouter);
