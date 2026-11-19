@@ -406,14 +406,14 @@ the logs.
 | `204` | successful delete, no body |
 | `400` | validation failed, or malformed JSON |
 | `401` | missing or invalid session cookie on a route that requires one |
-| `403` | authenticated, but not the resource owner |
+| `403` | authenticated, but not the resource owner; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
 | `404` | unknown route, or missing resource |
 | `405` | known path, unsupported method — carries an `Allow` header |
 | `409` | unique constraint violated, or a badge action is already in progress |
 | `413` | request body larger than 100 kB |
 | `429` | rate limit exceeded (see [Rate limiting](#rate-limiting)) |
 | `500` | unexpected server error |
-| `503` | `/api/health` — the database is unreachable; or an optional feature (42 login, badge reader) is not configured |
+| `503` | `/api/health` — the database is unreachable; or an optional feature (42 login, badge reader, badge login without `BADGE_LOGIN_ALLOWED_IPS`) is not configured |
 
 ### Conflicts are arbitrated by the database
 
@@ -603,7 +603,9 @@ Once the token is accepted, **every business outcome is a `200`** with a French
 already linked to an account, login ready, unknown badge, or no badge action in
 progress. What happened is reported to the browser through the
 [WebSocket](#websocket-ws). Error statuses are limited to `401` (missing or
-wrong token), `400` (invalid body) and `503` (badge reader not configured).
+wrong token), `400` (invalid body), `405` (a method other than `POST`), `503`
+(badge reader not configured) and `500` (the database failed while linking or
+looking up the badge).
 
 ### Badge routes (browser)
 
@@ -670,9 +672,12 @@ still open.
 
 The server closes the socket **without any message** when: the first message is
 not JSON with a non-empty string `code` (messages are limited to 1 kB), the
-`code` is unknown, expired or already taken by another socket, no first message
-arrives within 10 seconds, the 30-second window expires, or 35 seconds have
-elapsed in total.
+`code` is unknown, expired or already held by another open socket, no first
+message arrives within 10 seconds, or 35 seconds have elapsed in total. The
+30-second window expires lazily: nothing fires at the 30-second mark; the
+socket of an expired window is closed by the next pairing or badge login
+start, the next scan, or the next socket that sends a `code`, and at the latest
+by the 35-second cap.
 
 ### Rate limiting
 
@@ -843,9 +848,25 @@ from this file: use a browser, or a tool such as `websocat`.
   during the 30 seconds in which you pair yours, their badge is linked to your
   account and they can then log in as you. This is inherent to the "next scan
   wins" model.
-- **Anonymous login windows block each other.** While one `POST /badge/login`
-  window is open, another one gets `409`. The rate limit (one window per 10
-  seconds per IP) reduces the abuse without removing it.
+- **Badge login windows block each other.** While one `POST /badge/login`
+  window is open, another one gets `409`; since badge login is reserved to the
+  kiosk addresses, only the kiosk can cause this.
+- **A logged-in account can hold the reader.** Pairing needs a session but is
+  not limited: an account reopening a pairing every 30 seconds keeps the single
+  badge slot busy and blocks the badge reader for everyone.
+- **Email squatting on the 42 login.** 42 emails are predictable and local
+  emails are not verified. Someone can register a local account with a
+  student's 42 email before that student's first 42 login; the student then
+  gets `oauth_email_taken` with no way around it. This is the price of
+  refusing automatic linking by email, which would otherwise allow an account
+  takeover.
+- **The kiosk restriction relies on the WAF.** `BADGE_LOGIN_ALLOWED_IPS` is
+  compared with `req.ip`, read from `X-Forwarded-For` because `trust proxy` is
+  `1`. That is only trustworthy behind the team's WAF: the API must never be
+  reachable directly, or anyone can forge the header and pass as the kiosk.
+- **No cap on WebSocket connections per IP.** `/ws` limits each socket's
+  message size and lifetime, but not how many sockets one client opens; that
+  belongs to the WAF.
 - **Badge state lives in memory.** Pending windows, results and login tokens
   exist only inside one API process: run a single instance.
 - **The physical ESP32 cannot reach the API yet.** It needs the team's WAF in
