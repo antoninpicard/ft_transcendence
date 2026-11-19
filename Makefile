@@ -21,6 +21,8 @@ $(CERT):
 	openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
 		-subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
 		-keyout $(KEY) -out $@
+	# nginx runs as uid 101 in its container: the key must be readable by it on Linux hosts
+	chmod 644 $(KEY)
 
 a_wish:
 	@echo "Images :"
