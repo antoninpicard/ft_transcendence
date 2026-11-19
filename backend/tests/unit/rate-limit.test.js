@@ -18,17 +18,17 @@ afterEach(async () => {
   );
 });
 
-const post = (base, path) =>
+const post = (base, path, body = {}, headers = {}) =>
   fetch(`${base}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: '{}',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify(body),
   });
 
-async function statuses(base, path, count) {
+async function statuses(base, path, count, body, headers) {
   const result = [];
   for (let i = 0; i < count; i += 1) {
-    result.push((await post(base, path)).status);
+    result.push((await post(base, path, body, headers)).status);
   }
   return result;
 }
@@ -41,6 +41,24 @@ describe('limitation de débit', () => {
     assert.equal(res.status, 429);
     const body = await res.json();
     assert.equal(typeof body.error.message, 'string');
+  });
+
+  it('compte les essais de connexion par identifiant', async () => {
+    const base = await start({ rateLimit: true });
+    const alice = { identifier: 'alice' };
+    assert.deepEqual(await statuses(base, '/api/auth/login', 10, alice), Array(10).fill(400));
+    assert.equal((await post(base, '/api/auth/login', { identifier: 'bob' })).status, 400);
+    assert.equal((await post(base, '/api/auth/login')).status, 400);
+    assert.equal((await post(base, '/api/auth/login', { identifier: '  ALICE ' })).status, 429);
+  });
+
+  it('compte les essais de connexion par adresse', async () => {
+    const base = await start({ rateLimit: true });
+    const alice = { identifier: 'alice' };
+    const elsewhere = { 'x-forwarded-for': '203.0.113.9' };
+    await statuses(base, '/api/auth/login', 10, alice);
+    assert.equal((await post(base, '/api/auth/login', alice, elsewhere)).status, 400);
+    assert.equal((await post(base, '/api/auth/login', alice)).status, 429);
   });
 
   it("limite l'inscription à 5 par minute", async () => {

@@ -676,14 +676,20 @@ elapsed in total.
 
 ### Rate limiting
 
-Per client IP, counted in memory, answered with `429` in the usual error format
-(French message) plus the standard `RateLimit-*` headers:
+Counted in memory, answered with `429` in the usual error format (French
+message) plus the standard `RateLimit-*` headers:
 
-| Route | Limit |
-|---|---|
-| `POST /auth/login` | 10 per minute |
-| `POST /auth/register` | 5 per minute |
-| `POST /badge/login` | 1 per 10 seconds |
+| Route | Limit | Counted per |
+|---|---|---|
+| `POST /auth/login` | 10 per minute | client IP **and** identifier |
+| `POST /auth/register` | 5 per minute | client IP |
+| `POST /badge/login` | 1 per 10 seconds | client IP |
+
+The login counter is keyed by the client IP plus `identifier` from the body,
+trimmed and lowercased (the IP alone when `identifier` is not a string). Behind
+the school's NAT the whole campus shares one address: with a per-IP limit, one
+student typing ten wrong passwords would lock everyone out. Ten attempts on one
+identifier now block only that identifier from that address.
 
 `trust proxy` is set to `1`, so the IP is read from `X-Forwarded-For` as set by
 the single reverse proxy in front of the API. Rate limiting is **off by default

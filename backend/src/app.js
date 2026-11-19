@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import { rateLimit as createRateLimit } from 'express-rate-limit';
+import { rateLimit as createRateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
 import { notFound } from './middlewares/notFound.js';
@@ -32,7 +32,7 @@ export function createApp({ rateLimit = env.NODE_ENV !== 'test' } = {}) {
   }
 
   if (rateLimit) {
-    app.post('/api/auth/login', limiter({ windowMs: 60_000, limit: 10 }));
+    app.post('/api/auth/login', limiter({ windowMs: 60_000, limit: 10, keyGenerator: loginKey }));
     app.post('/api/auth/register', limiter({ windowMs: 60_000, limit: 5 }));
     app.post('/api/badge/login', limiter({ windowMs: 10_000, limit: 1 }));
   }
@@ -50,10 +50,18 @@ function noStore(_req, res, next) {
   next();
 }
 
-function limiter({ windowMs, limit }) {
+function loginKey(req) {
+  const ip = ipKeyGenerator(req.ip);
+  const identifier = req.body?.identifier;
+  if (typeof identifier !== 'string') return ip;
+  return JSON.stringify([ip, identifier.trim().toLowerCase()]);
+}
+
+function limiter({ windowMs, limit, keyGenerator }) {
   return createRateLimit({
     windowMs,
     limit,
+    ...(keyGenerator ? { keyGenerator } : {}),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (_req, _res, next) => next(AppError.tooManyRequests()),
