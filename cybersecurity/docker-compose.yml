@@ -1,0 +1,50 @@
+services:
+  nginx:
+    image: owasp/modsecurity-crs:4.25-nginx-lts
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./waf/certs:/etc/nginx/certs:ro
+      - ./waf/rules/before-crs.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+    environment:
+      - BACKEND=${WAF_BACKEND:-http://whoami:80}
+      - SERVER_NAME=localhost
+      - SSL_CERT_FILE=/etc/nginx/certs/server.crt
+      - SSL_CERT_KEY_FILE=/etc/nginx/certs/server.key
+      - MODSEC_RULE_ENGINE=On
+      - BLOCKING_PARANOIA=2
+      - ALLOWED_METHODS=GET HEAD POST PUT PATCH DELETE OPTIONS
+      - MODSEC_AUDIT_LOG_PARTS=ABJDFHZ
+    depends_on:
+      - whoami
+
+  whoami:
+    image: traefik/whoami
+
+  vault:
+    image: hashicorp/vault:2.1.2
+    command: server
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks:
+      - vault-net
+
+  secret-demo:
+    image: alpine:3.20
+    entrypoint: ["/bin/sh", "/fetch-secrets.sh"]
+    volumes:
+      - ./vault/run/backend:/run/vault:ro
+      - ./vault/demo/fetch-secrets.sh:/fetch-secrets.sh:ro
+    networks:
+      - vault-net
+    profiles: ["demo"]
+
+networks:
+  vault-net:
+    internal: true
+
+volumes:
+  vault-data:

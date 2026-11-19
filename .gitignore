@@ -1,1 +1,11 @@
 node_modules/
+cybersecurity/waf/certs/*.key
+cybersecurity/waf/certs/*.crt
+cybersecurity/vault/secrets/*.env
+cybersecurity/vault/run/
+.DS_Store
+.env
+**/.env
+
+# 42 subject (not part of the project)
+en.subject.pdf
