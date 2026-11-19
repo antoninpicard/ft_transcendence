@@ -18,7 +18,13 @@ export function createApp() {
   app.use(cors({ origin: env.corsOrigins, credentials: env.corsCredentials }));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
-  if (env.NODE_ENV !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
+  if (env.NODE_ENV !== 'test') {
+    app.use(
+      morgan(env.isProd ? 'combined' : 'dev', {
+        skip: (req) => req.originalUrl.startsWith('/api/auth/42/callback'),
+      }),
+    );
+  }
 
   app.use('/api', noStore, apiRouter);
 

@@ -19,3 +19,19 @@ export const sessionCookieOptions = {
   ...clearCookieOptions,
   maxAge: SESSION_TTL_MS,
 };
+
+export const OAUTH_STATE_COOKIE = 'oauth_state';
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+export const clearOauthStateCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: isSecureCookieEnv(process.env.NODE_ENV),
+  path: '/api/auth/42',
+};
+
+export const oauthStateCookieOptions = {
+  ...clearOauthStateCookieOptions,
+  maxAge: OAUTH_STATE_TTL_MS,
+};

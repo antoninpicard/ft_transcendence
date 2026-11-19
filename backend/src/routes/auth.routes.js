@@ -4,6 +4,7 @@ import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { registerBody, loginBody } from '../schemas/auth.schema.js';
 import * as controller from '../controllers/auth.controller.js';
+import * as oauth from '../controllers/oauth.controller.js';
 
 export const authRouter = Router();
 
@@ -12,7 +13,12 @@ authRouter.post('/login', validate({ body: loginBody }), controller.login);
 authRouter.post('/logout', controller.logout);
 authRouter.get('/me', requireAuth, controller.me);
 
+authRouter.get('/42', oauth.start);
+authRouter.get('/42/callback', oauth.callback);
+
 authRouter.all('/register', methodNotAllowed('POST'));
 authRouter.all('/login', methodNotAllowed('POST'));
 authRouter.all('/logout', methodNotAllowed('POST'));
 authRouter.all('/me', methodNotAllowed('GET'));
+authRouter.all('/42', methodNotAllowed('GET'));
+authRouter.all('/42/callback', methodNotAllowed('GET'));

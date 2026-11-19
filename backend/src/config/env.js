@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const blankToUndefined = (v) => (v === '' ? undefined : v);
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -7,6 +9,11 @@ const schema = z
     CORS_ORIGIN: z.string().optional(),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+    FORTYTWO_CLIENT_ID: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    FORTYTWO_CLIENT_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    FORTYTWO_REDIRECT_URI: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    FORTYTWO_API_URL: z.preprocess(blankToUndefined, z.url().default('https://api.intra.42.fr')),
+    FRONT_URL: z.preprocess(blankToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== 'production' || (c.CORS_ORIGIN && c.CORS_ORIGIN !== '*'), {
     path: ['CORS_ORIGIN'],
@@ -26,6 +33,13 @@ const corsOrigin = parsed.data.CORS_ORIGIN ?? '*';
 export const env = {
   ...parsed.data,
   CORS_ORIGIN: corsOrigin,
+  FORTYTWO_API_URL: parsed.data.FORTYTWO_API_URL.replace(/\/+$/, ''),
+  FRONT_URL: (parsed.data.FRONT_URL ?? '').replace(/\/+$/, ''),
+  fortyTwoConfigured: Boolean(
+    parsed.data.FORTYTWO_CLIENT_ID &&
+      parsed.data.FORTYTWO_CLIENT_SECRET &&
+      parsed.data.FORTYTWO_REDIRECT_URI,
+  ),
   isProd: parsed.data.NODE_ENV === 'production',
   corsOrigins:
     corsOrigin === '*'

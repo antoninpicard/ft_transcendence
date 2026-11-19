@@ -1,21 +1,17 @@
 import * as authService from '../services/auth.service.js';
-import { createSession, revokeSession } from '../services/sessions.service.js';
-import { SESSION_COOKIE, sessionCookieOptions, clearCookieOptions } from '../config/cookies.js';
-
-async function openSession(res, user) {
-  const { token } = await createSession(user.id);
-  res.cookie(SESSION_COOKIE, token, sessionCookieOptions);
-}
+import { revokeSession } from '../services/sessions.service.js';
+import { openSession } from './openSession.js';
+import { SESSION_COOKIE, clearCookieOptions } from '../config/cookies.js';
 
 export async function register(req, res) {
   const user = await authService.register(req.body);
-  await openSession(res, user);
+  await openSession(res, user.id);
   res.status(201).location(`/api/users/${user.id}`).json(user);
 }
 
 export async function login(req, res) {
   const user = await authService.verifyCredentials(req.body.identifier, req.body.password);
-  await openSession(res, user);
+  await openSession(res, user.id);
   res.json(user);
 }
 
