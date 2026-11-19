@@ -244,4 +244,45 @@ describe('badgeActions', () => {
     await assert.rejects(actions.handleScan(hash), { message: 'base indisponible' });
     assert.equal(await actions.handleScan(hash), 'not-pairing');
   });
+
+  it('libère l action quand sa socket se ferme', async () => {
+    store.knownUser = 'u2';
+    const { code } = actions.start('login');
+    const first = fakeSocket();
+    actions.attachSocket(code, first);
+    actions.detachSocket(first);
+
+    const second = fakeSocket();
+    actions.attachSocket(code, second);
+    assert.equal(second.closed, 0);
+    assert.equal(await actions.handleScan(hash), 'login-ready');
+    assert.equal(first.sent.length, 0);
+    assert.equal(second.sent.length, 1);
+    assert.equal(JSON.parse(second.sent[0]).status, 'login-ready');
+  });
+
+  it('ignore la fermeture d une socket qui ne porte pas l action', async () => {
+    const { code } = actions.start('login');
+    const attached = fakeSocket();
+    actions.attachSocket(code, attached);
+    const stranger = fakeSocket();
+    actions.attachSocket(code, stranger);
+    assert.equal(stranger.closed, 1);
+    actions.detachSocket(stranger);
+    assert.equal(await actions.handleScan(hash), 'unknown-badge');
+    assert.deepEqual(JSON.parse(attached.sent[0]), { status: 'unknown-badge' });
+  });
+
+  it('refuse une seconde socket tant que la première est rattachée', () => {
+    const { code } = actions.start('login');
+    actions.attachSocket(code, fakeSocket());
+    const second = fakeSocket();
+    actions.attachSocket(code, second);
+    assert.equal(second.closed, 1);
+    assert.equal(second.sent.length, 0);
+  });
+
+  it('tolère la fermeture d une socket sans action', () => {
+    assert.doesNotThrow(() => actions.detachSocket(fakeSocket()));
+  });
 });

@@ -201,8 +201,9 @@ connection.
 `server.js` runs `SELECT 1` before listening. If the database is unreachable the
 process exits with a clear message instead of serving 500s.
 
-On `SIGINT` / `SIGTERM` it stops accepting new requests, lets in-flight ones
-finish, releases the connection pool, then exits. A 10-second timer forces the
+On `SIGINT` / `SIGTERM` it terminates the open badge WebSockets and closes the
+WebSocket server, stops accepting new requests, lets in-flight ones finish,
+releases the connection pool, then exits. A 10-second timer forces the
 exit if a request hangs.
 
 ---
@@ -660,7 +661,10 @@ connection is served by the same HTTP server and port as the API.
 | `not-pairing` | the account disappeared before the badge was linked |
 
 The result is kept for 5 seconds if the scan happens before the socket is
-attached, so a fast scan is not lost.
+attached, so a fast scan is not lost. A window holds at most one socket at a
+time; when that socket closes (a page reload, a dropped connection), the window
+is freed and a new socket can attach with the same `code` while the window is
+still open.
 
 The server closes the socket **without any message** when: the first message is
 not JSON with a non-empty string `code` (messages are limited to 1 kB), the

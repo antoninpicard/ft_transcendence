@@ -42,4 +42,16 @@ describe('badgeuse non configurée', () => {
   it('répond 503 à la consultation du badge', async () => {
     assert.equal((await fetch(`${base}/api/badge`)).status, 503);
   });
+
+  it('répond 503 au démarrage d un appairage', async () => {
+    assert.equal((await post('/api/badge/pairing')).status, 503);
+  });
+
+  it('répond 503 à la confirmation de la connexion par badge', async () => {
+    assert.equal((await post('/api/badge/login/confirm', { token: 'inconnu' })).status, 503);
+  });
+
+  it('répond 503 à la déliaison du badge', async () => {
+    assert.equal((await fetch(`${base}/api/badge`, { method: 'DELETE' })).status, 503);
+  });
 });

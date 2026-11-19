@@ -165,6 +165,54 @@ describe('websocket de la badgeuse', () => {
     await expectClosed(client);
   });
 
+  it('rattache une nouvelle socket au même code quand la première s est fermée', async () => {
+    const uid = randomUid();
+    await link(await register(), uid);
+
+    const { json } = await call('POST', '/api/badge/login');
+    const first = await open();
+    first.send(JSON.stringify({ code: json.code }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const firstClosed = once(first, 'close');
+    first.close();
+    await firstClosed;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const second = await open();
+    const message = nextMessage(second);
+    second.send(JSON.stringify({ code: json.code }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await scan(uid);
+    const result = await message;
+    assert.equal(result.status, 'login-ready');
+    assert.equal(typeof result.token, 'string');
+    await expectClosed(second);
+  });
+
+  it('refuse une seconde socket au même code tant que la première est ouverte', async () => {
+    const uid = randomUid();
+    await link(await register(), uid);
+
+    const { json } = await call('POST', '/api/badge/login');
+    const first = await open();
+    const firstMessage = nextMessage(first);
+    first.send(JSON.stringify({ code: json.code }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const second = await open();
+    let secondReceived = false;
+    second.on('message', () => {
+      secondReceived = true;
+    });
+    second.send(JSON.stringify({ code: json.code }));
+    await expectClosed(second);
+    assert.equal(secondReceived, false);
+
+    await scan(uid);
+    assert.equal((await firstMessage).status, 'login-ready');
+    await expectClosed(first);
+  });
+
   it('ferme une socket qui envoie du texte invalide', async () => {
     const client = await open();
     client.send('pas du json');

@@ -138,6 +138,10 @@ export function createBadgeActions({ store, now = Date.now }) {
     closeQuietly(socket);
   }
 
+  function detachSocket(socket) {
+    if (current && current.socket === socket) current.socket = null;
+  }
+
   function consumeLoginToken(token) {
     const entry = loginTokens.get(token);
     if (!entry) return null;
@@ -145,5 +149,5 @@ export function createBadgeActions({ store, now = Date.now }) {
     return entry.expiresAt > now() ? entry.userId : null;
   }
 
-  return { start, handleScan, attachSocket, consumeLoginToken };
+  return { start, handleScan, attachSocket, detachSocket, consumeLoginToken };
 }

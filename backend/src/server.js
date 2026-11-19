@@ -17,7 +17,7 @@ const server = app.listen(env.PORT, () => {
   console.log(`API à l'écoute sur http://localhost:${server.address().port} (${env.NODE_ENV})`);
 });
 
-attachBadgeSocket(server, app.locals.badgeActions);
+const badgeSocket = attachBadgeSocket(server, app.locals.badgeActions);
 
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
@@ -29,6 +29,8 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     shuttingDown = true;
     console.log(`\n${signal} reçu, arrêt du serveur...`);
 
+    for (const client of badgeSocket.clients) client.terminate();
+    badgeSocket.close();
     server.close(async (err) => {
       if (err) console.error('Erreur à la fermeture du serveur :', err);
       try {

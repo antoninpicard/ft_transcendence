@@ -33,6 +33,7 @@ export function attachBadgeSocket(
     socket.on('close', () => {
       clearTimeout(handshakeTimer);
       clearTimeout(lifetimeTimer);
+      badgeActions.detachSocket(socket);
     });
 
     socket.once('message', (raw) => {
