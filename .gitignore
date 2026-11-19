@@ -6,3 +6,6 @@ cybersecurity/vault/run/
 .DS_Store
 .env
 **/.env
+
+# 42 subject (not part of the project)
+en.subject.pdf
