@@ -784,7 +784,8 @@ it there, for each environment:
 }
 ```
 
-`GET /auth/42` answers with a redirect to 42, so the client follows it; run it
+`GET /auth/42` answers `302` to 42 and the request is marked `# @no-redirect`, so
+the redirect is not followed and its `Location` header can be inspected; run it
 from a browser to complete the whole flow. The WebSocket cannot be exercised
 from this file: use a browser, or a tool such as `websocat`.
 

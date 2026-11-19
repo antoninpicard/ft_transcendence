@@ -94,7 +94,8 @@ Cookie: {{sessionCookie}}
 # 42 OAuth — answers 302 to the 42 authorize page, or 503 when not configured
 ###############################################################################
 
-### Start the 42 login — sets the oauth_state cookie, redirects to 42 (complete the flow from a browser)
+### Start the 42 login — sets the oauth_state cookie, answers 302 to 42 (redirect not followed; complete the flow from a browser)
+# @no-redirect
 GET {{host}}/api/auth/42
 
 > {%
@@ -138,7 +139,20 @@ X-Device-Token: {{deviceToken}}
 # Badge (browser) — pairing and login results arrive on ws://<host>/ws
 ###############################################################################
 
-### Start a pairing — 200 { code }, needs the session; open /ws, send { "code": ... }, then scan within 30 s
+# Only one badge action exists at a time: a login window answers 409 while a pairing
+# is open, and a pairing answers 409 while another pairing is open. Scanning a
+# badge or waiting 30 s frees the reader. A pairing does replace a pending login window.
+
+### Start a badge login — 200 { code }, anonymous, limited to 1 per 10 s (429 beyond); 409 while another action is open
+POST {{host}}/api/badge/login
+
+> {%
+    client.test("login window opened", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### Start a pairing — 200 { code }, needs the session; replaces a pending login window; open /ws, send { "code": ... }, then scan within 30 s
 POST {{host}}/api/badge/pairing
 Cookie: {{sessionCookie}}
 
@@ -146,9 +160,6 @@ Cookie: {{sessionCookie}}
     client.test("pairing started", function () {
         client.assert(response.status === 200, "expected 200, got " + response.status);
     });
-    if (response.status === 200) {
-        client.global.set("badgeCode", response.body.code);
-    }
 %}
 
 ### Badge status — { linked: true | false }
@@ -157,15 +168,6 @@ Cookie: {{sessionCookie}}
 
 > {%
     client.test("status", function () {
-        client.assert(response.status === 200, "expected 200, got " + response.status);
-    });
-%}
-
-### Start a badge login — 200 { code }, anonymous, limited to 1 per 10 s (429 beyond)
-POST {{host}}/api/badge/login
-
-> {%
-    client.test("login window opened", function () {
         client.assert(response.status === 200, "expected 200, got " + response.status);
     });
 %}
