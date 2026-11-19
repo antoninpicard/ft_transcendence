@@ -22,27 +22,52 @@ Enforced through the `engines` field in `package.json`. The binding constraint i
 
 ## Quick start
 
+The API lives in `webapp/backend/`. The whole project starts from the
+repository root with the team's compose file, `contbuild/docker-compose.yml`,
+which reads a single environment file, `contbuild/.env`.
+
+### Run everything
+
 ```bash
-cp .env.example .env   # at the repository root
-cd backend
-npm install
-npm run db:up          # start PostgreSQL 17 in Docker
-npm run migrate        # apply pending SQL migrations
-npm run dev            # start the API with hot reload
+cp contbuild/.env.example contbuild/.env   # then fill in the values
+make
 ```
 
-`.env`, `.env.example` and `docker-compose.yml` live at the **repository root**,
-not in `backend/`: the subject requires the whole project to start from there,
-and Compose reads the `.env` sitting next to the compose file. The npm scripts
-below run from `backend/` and reach up to both.
+`make` builds and starts three services:
 
-The API listens on `http://localhost:3000` and every route is served under the
-`/api` prefix.
+| Service | Port | What it is |
+|---|---|---|
+| `app` | 3000 | Antonin's original server (`infra/`), unchanged |
+| `db` | 5432 | PostgreSQL 17, data in the `contbuild_db-data` volume |
+| `api` | **3001** | this API; applies pending migrations, then starts |
 
-Verify it is alive:
+The API is published on **3001** while it coexists with Antonin's server on
+3000. Routing the WAF to the API and retiring `infra/` wait for his agreement.
+
+Inside the container the API runs with `NODE_ENV=production`, like the `app`
+service: `CORS_ORIGIN` must list explicit origins, and the session cookie is
+`Secure`, so browsers only accept it over HTTPS — behind the WAF. Use `curl`
+to test the container directly.
+
+### Develop locally
 
 ```bash
-curl -s http://localhost:3000/api/health
+cd webapp/backend
+npm install
+npm run db:up          # start only the db service
+npm run migrate        # apply pending SQL migrations
+npm run dev            # start the API with hot reload on PORT (3001)
+```
+
+The npm scripts read `../../contbuild/.env` and drive the `db` service of the
+team compose. Stop the `api` container first (`docker compose -f
+contbuild/docker-compose.yml stop api` from the repository root) if you run
+`npm run dev`, since both use port 3001.
+
+Every route is served under the `/api` prefix. Verify the API is alive:
+
+```bash
+curl -s http://localhost:3001/api/health
 ```
 
 ---
@@ -51,14 +76,14 @@ curl -s http://localhost:3000/api/health
 
 | Script | What it does |
 |---|---|
-| `npm run dev` | Starts the API with `node --watch`, loading the root `../.env`. |
+| `npm run dev` | Starts the API with `node --watch`, loading `../../contbuild/.env`. |
 | `npm start` | Starts the API **without** loading `.env` — variables must come from the real environment (Docker, systemd). This is intentional: production configuration does not live in a file inside the image. |
 | `npm run migrate` | Applies every migration that has not been applied yet. |
-| `npm run db:up` | Starts the PostgreSQL container in the background, from the root `../docker-compose.yml`. |
-| `npm run db:down` | Stops the container. **Data is kept.** |
+| `npm run db:up` | Starts only the `db` service of `contbuild/docker-compose.yml`. |
+| `npm run db:down` | Stops only the `db` service. **Data is kept.** The rest of the stack keeps running. |
 | `npm test` | Runs the tests that need no database. |
 | `npm run test:db` | Runs the tests that need PostgreSQL. Start it first with `npm run db:up`. |
-| `npm run db:reset` | Destroys the volume and recreates an empty database. Guarded — see [Resetting the database](#resetting-the-database). |
+| `npm run db:reset` | Destroys the database volume and recreates an empty database, leaving the other services running. Guarded — see [Resetting the database](#resetting-the-database). |
 
 ---
 
@@ -76,12 +101,12 @@ user request.
 | `CORS_ORIGIN` | no | `*` | Comma-separated list of allowed origins, or `*`. **Rejected at startup when `NODE_ENV=production`**, where explicit origins are required. |
 | `DATABASE_URL` | **yes** | — | `postgres://` or `postgresql://` connection string. |
 | `DB_POOL_MAX` | no | `10` | Max pooled connections, 1–100. |
-| `POSTGRES_USER` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
-| `POSTGRES_PASSWORD` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
-| `POSTGRES_DB` | **yes** | — | Read by the root `docker-compose.yml`. Must match `DATABASE_URL`. |
+| `POSTGRES_USER` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
+| `POSTGRES_PASSWORD` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
+| `POSTGRES_DB` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
 | `FORTYTWO_CLIENT_ID` | no | — | UID of the 42 application. |
 | `FORTYTWO_CLIENT_SECRET` | no | — | Secret of the 42 application. |
-| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application, e.g. `http://localhost:3000/api/auth/42/callback`. |
+| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application, e.g. `http://localhost:3001/api/auth/42/callback`. |
 | `FORTYTWO_API_URL` | no | `https://api.intra.42.fr` | Base URL of the intra API (tests point it at a fake server). A trailing slash is dropped. |
 | `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
 | `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
@@ -108,10 +133,14 @@ login additionally needs `BADGE_LOGIN_ALLOWED_IPS`: without it
 badge login is then disabled, never open to everyone. The rest of the API is
 unaffected.
 
-Real values live in `.env` **at the repository root**, which is git-ignored.
-`.env.example` sits beside it, is committed, and documents every key — copy it
-to `.env` before the first `npm run db:up`, since Compose reads the database
-credentials from there and refuses to start without them.
+Real values live in `contbuild/.env`, which is git-ignored and shared by every
+service of the team compose. `contbuild/.env.example` sits beside it, is
+committed, and documents every key, including `SESSION_SECRET`, which
+Antonin's `app` service needs to start — copy it to `contbuild/.env` before the
+first `make` or `npm run db:up`, since Compose reads the database credentials
+from there and refuses to start without them. In the `api` container,
+`DATABASE_URL` is replaced so that it targets the `db` service instead of
+`localhost`.
 
 `credentials` is only advertised to the browser when `CORS_ORIGIN` lists
 explicit origins: `*` combined with credentials is rejected by every browser, so
@@ -323,8 +352,10 @@ Migration `002` adds a `NOT NULL` column without a default, so it fails if the
 npm run db:reset
 ```
 
-Destroys the Docker volume and recreates an empty database, then you re-run
-`npm run migrate`. Because this is irreversible, `src/db/reset.js` enforces
+Removes only the `db` container and its `contbuild_db-data` volume, then
+recreates an empty database — Antonin's server and the API keep running. Then
+re-run `npm run migrate`, or restart the `api` service, which migrates on
+start. Because this is irreversible, `src/db/reset.js` enforces
 three independent guards and refuses with exit code 1 if any fails:
 
 1. `NODE_ENV` must be **explicitly** `development` or `test`. An unset variable
@@ -881,6 +912,6 @@ from this file: use a browser, or a tool such as `websocat`.
 | Area | Plan |
 |---|---|
 | HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
-| Containerisation | `Dockerfile` (multi-stage, non-root user) plus `.dockerignore`, added as a service to the root `docker-compose.yml`, which currently declares only `db`. |
+| WAF routing | Point the WAF's `/api` traffic at the `api` service and retire `infra/`, once Antonin has validated the integration. |
 | Real-time (game, chat) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; other real-time features will reuse it. |
 | Linting | ESLint + Prettier, to be agreed on before several people commit. |

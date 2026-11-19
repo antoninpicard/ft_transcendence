@@ -42,8 +42,8 @@ services:
 
   api:
     build:
-      context: ../backend
-      dockerfile: ../contbuild/api.Dockerfile
+      context: ../webapp/backend
+      dockerfile: ../../contbuild/api.Dockerfile
 
     ports:
       - "3001:3000"

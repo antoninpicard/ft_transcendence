@@ -56,7 +56,7 @@ if (!process.argv.includes('--yes')) {
 }
 
 const REDIRECTING_VARS = ['DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'];
-const COMPOSE_FILE = new URL('../../../contbuild/docker-compose.yml', import.meta.url).pathname;
+const COMPOSE_FILE = new URL('../../../../contbuild/docker-compose.yml', import.meta.url).pathname;
 const COMPOSE_PROJECT = 'contbuild';
 const DB_VOLUME = `${COMPOSE_PROJECT}_db-data`;
 
