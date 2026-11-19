@@ -30,6 +30,10 @@ export class AppError extends Error {
     return new AppError(409, message, details);
   }
 
+  static tooManyRequests(message = 'Trop de requêtes, réessayez plus tard') {
+    return new AppError(429, message);
+  }
+
   static serviceUnavailable(message = 'Service indisponible') {
     return new AppError(503, message);
   }
