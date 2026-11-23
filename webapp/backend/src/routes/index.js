@@ -6,6 +6,7 @@ import { deviceRouter } from './device.routes.js';
 import { badgeRouter } from './badge.routes.js';
 import { apiKeysRouter } from './apiKeys.routes.js';
 import { friendsRouter } from './friends.routes.js';
+import { messagesRouter } from './messages.routes.js';
 
 export const apiRouter = Router();
 
@@ -28,4 +29,5 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/badge', badgeRouter);
 apiRouter.use('/keys', apiKeysRouter);
 apiRouter.use('/friends', friendsRouter);
+apiRouter.use('/messages', messagesRouter);
 apiRouter.use(deviceRouter);

@@ -3,7 +3,7 @@ import { isUniqueViolation } from '../db/errors.js';
 import { AppError } from '../utils/AppError.js';
 import { getPublicUser } from './users.service.js';
 
-const FRIEND_COLUMNS = `u.id, u.username, u.created_at AS "createdAt"`;
+export const FRIEND_COLUMNS = `u.id, u.username, u.created_at AS "createdAt"`;
 
 export async function listFriends(userId) {
   const { rows } = await query(
