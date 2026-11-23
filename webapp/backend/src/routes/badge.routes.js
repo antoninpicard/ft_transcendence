@@ -3,13 +3,14 @@ import { validate } from '../middlewares/validate.js';
 import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 import { requireBadgeEnabled } from '../middlewares/requireBadgeEnabled.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
+import { requireSession } from '../middlewares/requireSession.js';
 import { requireBadgeKiosk } from '../middlewares/requireBadgeKiosk.js';
 import { confirmBody } from '../schemas/badge.schema.js';
 import * as controller from '../controllers/badge.controller.js';
 
 export const badgeRouter = Router();
 
-badgeRouter.post('/pairing', requireBadgeEnabled, requireAuth, controller.startPairing);
+badgeRouter.post('/pairing', requireBadgeEnabled, requireAuth, requireSession, controller.startPairing);
 badgeRouter.post('/login', requireBadgeEnabled, requireBadgeKiosk, controller.startLogin);
 badgeRouter.post(
   '/login/confirm',
@@ -18,8 +19,8 @@ badgeRouter.post(
   validate({ body: confirmBody }),
   controller.confirmLogin,
 );
-badgeRouter.get('/', requireBadgeEnabled, requireAuth, controller.status);
-badgeRouter.delete('/', requireBadgeEnabled, requireAuth, controller.unlink);
+badgeRouter.get('/', requireBadgeEnabled, requireAuth, requireSession, controller.status);
+badgeRouter.delete('/', requireBadgeEnabled, requireAuth, requireSession, controller.unlink);
 
 badgeRouter.all('/pairing', methodNotAllowed('POST'));
 badgeRouter.all('/login', methodNotAllowed('POST'));

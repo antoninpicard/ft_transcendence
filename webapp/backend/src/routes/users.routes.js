@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { validate } from '../middlewares/validate.js';
 import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
+import { requireSession } from '../middlewares/requireSession.js';
 import { requireSelf } from '../middlewares/requireSelf.js';
 import { idParams, listQuery, userPatchBody } from '../schemas/users.schema.js';
 import * as controller from '../controllers/users.controller.js';
@@ -21,6 +22,7 @@ usersRouter.delete(
   '/:id',
   validate({ params: idParams }),
   requireAuth,
+  requireSession,
   requireSelf,
   controller.remove,
 );
