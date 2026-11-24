@@ -1,7 +1,10 @@
 import { query, queryOne } from '../db/pool.js';
-import { isUniqueViolation } from '../db/errors.js';
+import { isUniqueViolation, PG_FOREIGN_KEY_VIOLATION } from '../db/errors.js';
 import { AppError } from '../utils/AppError.js';
 import { getPublicUser } from './users.service.js';
+
+const PAIR = `LEAST(requester_id, addressee_id) = LEAST($1::uuid, $2::uuid)
+          AND GREATEST(requester_id, addressee_id) = GREATEST($1::uuid, $2::uuid)`;
 
 export const FRIEND_COLUMNS = `u.id, u.username, u.created_at AS "createdAt"`;
 
@@ -37,7 +40,7 @@ async function listPending(userId, ownColumn, otherColumn) {
 
 export async function sendFriendRequest(userId, targetId) {
   if (userId === targetId) {
-    throw AppError.badRequest('Impossible de s’envoyer une demande à soi-même');
+    throw AppError.badRequest("Impossible de s'envoyer une demande à soi-même");
   }
   const user = await getPublicUser(targetId);
 
@@ -48,6 +51,9 @@ export async function sendFriendRequest(userId, targetId) {
     );
     return { status: 'pending', user };
   } catch (err) {
+    if (err?.code === PG_FOREIGN_KEY_VIOLATION) {
+      throw AppError.notFound(`Utilisateur ${targetId} introuvable`);
+    }
     if (!isUniqueViolation(err, 'friendships_pair_key')) throw err;
   }
 
@@ -77,7 +83,7 @@ export async function deleteFriendRequest(userId, otherId) {
   const { rowCount } = await query(
     `DELETE FROM friendships
       WHERE status = 'pending'
-        AND ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))`,
+        AND ${PAIR}`,
     [userId, otherId],
   );
   if (rowCount === 0) throw AppError.notFound('Aucune demande en attente avec cet utilisateur');
@@ -87,7 +93,7 @@ export async function removeFriend(userId, friendId) {
   const { rowCount } = await query(
     `DELETE FROM friendships
       WHERE status = 'accepted'
-        AND ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))`,
+        AND ${PAIR}`,
     [userId, friendId],
   );
   if (rowCount === 0) throw AppError.notFound("Cet utilisateur n'est pas dans vos amis");
@@ -98,7 +104,7 @@ export async function getRelation(viewerId, targetId) {
   const row = await queryOne(
     `SELECT requester_id AS "requesterId", status
        FROM friendships
-      WHERE requester_id IN ($1, $2) AND addressee_id IN ($1, $2)`,
+      WHERE ${PAIR}`,
     [viewerId, targetId],
   );
   if (!row) return 'none';
@@ -110,7 +116,7 @@ export async function areFriends(a, b) {
   const row = await queryOne(
     `SELECT 1 AS found
        FROM friendships
-      WHERE status = 'accepted' AND requester_id IN ($1, $2) AND addressee_id IN ($1, $2)`,
+      WHERE status = 'accepted' AND ${PAIR}`,
     [a, b],
   );
   return Boolean(row);

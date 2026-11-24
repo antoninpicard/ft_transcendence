@@ -180,6 +180,26 @@ describe('schéma d authentification', () => {
     assert.ok(index, 'l index messages_pair_created_idx doit exister');
   });
 
+  it('indexe les colonnes de clé étrangère et de recherche', async () => {
+    const { rows } = await query(
+      `SELECT indexname FROM pg_indexes
+        WHERE indexname IN ('messages_sender_created_idx', 'messages_recipient_created_idx',
+                            'friendships_requester_id_idx', 'friendships_addressee_id_idx',
+                            'api_keys_user_id_idx')
+        ORDER BY indexname`,
+    );
+    assert.deepEqual(
+      rows.map((r) => r.indexname),
+      [
+        'api_keys_user_id_idx',
+        'friendships_addressee_id_idx',
+        'friendships_requester_id_idx',
+        'messages_recipient_created_idx',
+        'messages_sender_created_idx',
+      ],
+    );
+  });
+
   it('supprime clés, amitiés et messages avec le compte', async () => {
     const rows = await query(
       `SELECT tc.table_name, rc.delete_rule
