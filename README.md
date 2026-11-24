@@ -42,13 +42,20 @@ newgrp docker
 
 ### First run
 
-1. **Secrets.** Copy the example file and fill in real values. The `.env` file is
-   ignored by Git; it is only read by the bootstrap script, which loads it into Vault.
+1. **Configuration files.** Copy the two example files and fill in real values.
+   Both are ignored by Git, and `make` stops with a message if one is missing.
 
    ```sh
+   cp contbuild/.env.example contbuild/.env
+   # edit contbuild/.env: POSTGRES_*, CORS_ORIGIN (https://localhost:8443), ...
    cp cybersecurity/vault/secrets/app.env.example cybersecurity/vault/secrets/app.env
    # edit cybersecurity/vault/secrets/app.env: SESSION_SECRET, DEVICE_TOKEN
    ```
+
+   - `contbuild/.env` is read by Compose (database credentials) and by the `api` and
+     `db` services. The `app` service does not read it.
+   - `cybersecurity/vault/secrets/app.env` is only read by the bootstrap script, which
+     loads it into Vault: the app gets `SESSION_SECRET` and `DEVICE_TOKEN` from Vault.
 
 2. **TLS certificate:** nothing to do. If `cybersecurity/waf/certs/server.crt` is
    missing, `make` creates a self-signed certificate for `localhost` with `openssl`
@@ -62,10 +69,13 @@ newgrp docker
 
    `make` starts Vault, runs `cybersecurity/vault/scripts/bootstrap.sh`
    (init on first run, unseal, configuration, secrets loading), then builds and
-   starts the app and the WAF.
+   starts the app, the API, the database and the WAF, and restarts the WAF so that
+   it uses the current address of the app.
 
 4. Open **https://localhost:8443** (accept the self-signed certificate).
-   The app port (3000) is not published: the WAF is the only entry point.
+   The app port (3000) is not published: the app is only reachable through the WAF.
+   The API (`127.0.0.1:3001`) and the database (`127.0.0.1:5432`) are published on
+   localhost only.
 
 On the first run, the bootstrap writes the Vault unseal keys and root token to
 `~/vault-init.json` (mode 600, outside the repository). Keep this file: without it,
@@ -76,8 +86,9 @@ Vault cannot be unsealed after a restart.
 | Command | Effect |
 |---|---|
 | `make stop` / `make clean` | Stop and remove the containers. The Vault data volume is kept. |
+| `make fclean` | Also remove the database volume and the built images (asks for confirmation). The Vault data volume is kept. |
 | `make re` | `clean` then `make` |
-| `make a_wish` | Show images, containers and app logs |
+| `make a_wish` | Show images, containers and the logs of every service |
 | `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app |
 | `bash cybersecurity/vault/tests/vault-isolation-test.sh` | Vault isolation tests (policies and network) |
 
@@ -216,6 +227,9 @@ WAF cannot resolve Vault, which has no Internet access. It prints status codes o
   "select ... from", "--", "1 OR 2") and on passwords with many symbols. Targeted
   exclusions are still to be written for the real fields.
 - The certificate is self-signed (development only).
+- The API (`webapp/backend`) is not behind the WAF yet (published on
+  `127.0.0.1:3001`), and its secrets (database, 42 OAuth, badge) are read from
+  `contbuild/.env`, not from Vault.
 - `~/vault-init.json` holds both the unseal keys and the root token, and the
   bootstrap keeps using the root token to stay idempotent. In production, the keys
   would be split between several people and the root token revoked.
