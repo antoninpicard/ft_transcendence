@@ -101,7 +101,7 @@ describe('messages directs', () => {
     }
   });
 
-  it('fonctionne avec une clé d API', async () => {
+  it("fonctionne avec une clé d'API", async () => {
     const { a, b } = await friends();
     const { key } = await createApiKey(a.id, 'test');
     const sent = await call('POST', `/api/messages/${b.id}`, { bearer: key, body: { body: 'clé' } });

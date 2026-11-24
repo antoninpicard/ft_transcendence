@@ -30,7 +30,7 @@ export async function authenticate(req, _res, next) {
 async function authenticateByKey(req, header) {
   const key = header.startsWith(BEARER_PREFIX) ? header.slice(BEARER_PREFIX.length) : null;
   const apiKey = isWellFormedApiKey(key) ? await resolveApiKey(key) : null;
-  if (!apiKey) throw AppError.unauthorized('Clé d API invalide');
+  if (!apiKey) throw AppError.unauthorized("Clé d'API invalide");
 
   req.user = await getPrivateUser(apiKey.userId);
   req.authMethod = 'apiKey';

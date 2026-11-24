@@ -13,11 +13,11 @@ const PAIR = `LEAST(sender_id, recipient_id) = LEAST($1::uuid, $2::uuid)
 
 export async function sendMessage(senderId, recipientId, body) {
   if (senderId === recipientId) {
-    throw AppError.badRequest('Impossible de s’envoyer un message à soi-même');
+    throw AppError.badRequest("Impossible de s'envoyer un message à soi-même");
   }
   await getPublicUser(recipientId);
   if (!(await areFriends(senderId, recipientId))) {
-    throw AppError.forbidden('Vous ne pouvez écrire qu’à vos amis');
+    throw AppError.forbidden("Vous ne pouvez écrire qu'à vos amis");
   }
   try {
     return await queryOne(
