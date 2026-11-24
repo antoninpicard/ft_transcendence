@@ -1,0 +1,34 @@
+{
+  "name": "api-trans",
+  "version": "1.0.0",
+  "description": "API Express pour ft_transcendence",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch --env-file=../../contbuild/.env src/server.js",
+    "migrate": "node --env-file=../../contbuild/.env src/db/migrate.js",
+    "db:up": "docker compose -f ../../contbuild/docker-compose.yml up -d db",
+    "db:down": "docker compose -f ../../contbuild/docker-compose.yml stop db",
+    "db:reset": "node --env-file-if-exists=../../contbuild/.env src/db/reset.js",
+    "test": "NODE_ENV=test DATABASE_URL=postgresql://unused@127.0.0.1:5432/unused node --test 'tests/unit/**/*.test.js'",
+    "test:db": "NODE_ENV=test node --env-file=../../contbuild/.env --test 'tests/db/**/*.test.js'"
+  },
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "morgan": "^1.12.0",
+    "pg": "^8.23.0",
+    "ws": "^8.23.0",
+    "zod": "^4.5.4"
+  },
+  "engines": {
+    "node": ">=22.9"
+  }
+}

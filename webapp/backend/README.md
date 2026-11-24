@@ -1,0 +1,917 @@
+# Backend API
+
+REST API for ft_transcendence, built with **Express 5** on **Node 22**
+(JavaScript, ESM) and **PostgreSQL 17**, accessed through plain SQL with `pg`.
+
+The `users` resource is implemented end to end and is meant to be **copied** as
+the template for every new resource: migration → service → controller → route.
+
+---
+
+## Requirements
+
+| Tool | Version | Why |
+|---|---|---|
+| Node | **>= 22.9** | `--env-file`, `--env-file-if-exists`, `node --watch`, built-in test runner |
+| Docker + Compose | any recent | runs PostgreSQL locally |
+
+Enforced through the `engines` field in `package.json`. The binding constraint is
+`--env-file-if-exists`, added in Node 22.9.
+
+---
+
+## Quick start
+
+The API lives in `webapp/backend/`. The whole project starts from the
+repository root with the team's compose file, `contbuild/docker-compose.yml`,
+which reads a single environment file, `contbuild/.env`.
+
+### Run everything
+
+```bash
+cp contbuild/.env.example contbuild/.env   # then fill in the values
+make
+```
+
+`make` builds and starts three services:
+
+| Service | Port | What it is |
+|---|---|---|
+| `app` | 3000 | Antonin's original server (`infra/`), unchanged |
+| `db` | 5432 | PostgreSQL 17, data in the `contbuild_db-data` volume |
+| `api` | **3001** | this API; applies pending migrations, then starts |
+
+The API is published on **3001** while it coexists with Antonin's server on
+3000. Routing the WAF to the API and retiring `infra/` wait for his agreement.
+
+Inside the container the API runs with `NODE_ENV=production`, like the `app`
+service: `CORS_ORIGIN` must list explicit origins, and the session cookie is
+`Secure`, so browsers only accept it over HTTPS — behind the WAF. Use `curl`
+to test the container directly.
+
+### Develop locally
+
+```bash
+cd webapp/backend
+npm install
+npm run db:up          # start only the db service
+npm run migrate        # apply pending SQL migrations
+npm run dev            # start the API with hot reload on PORT (3001)
+```
+
+The npm scripts read `../../contbuild/.env` and drive the `db` service of the
+team compose. Stop the `api` container first (`docker compose -f
+contbuild/docker-compose.yml stop api` from the repository root) if you run
+`npm run dev`, since both use port 3001.
+
+Every route is served under the `/api` prefix. Verify the API is alive:
+
+```bash
+curl -s http://localhost:3001/api/health
+```
+
+---
+
+## npm scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Starts the API with `node --watch`, loading `../../contbuild/.env`. |
+| `npm start` | Starts the API **without** loading `.env` — variables must come from the real environment (Docker, systemd). This is intentional: production configuration does not live in a file inside the image. |
+| `npm run migrate` | Applies every migration that has not been applied yet. |
+| `npm run db:up` | Starts only the `db` service of `contbuild/docker-compose.yml`. |
+| `npm run db:down` | Stops only the `db` service. **Data is kept.** The rest of the stack keeps running. |
+| `npm test` | Runs the tests that need no database. |
+| `npm run test:db` | Runs the tests that need PostgreSQL. Start it first with `npm run db:up`. |
+| `npm run db:reset` | Destroys the database volume and recreates an empty database, leaving the other services running. Guarded — see [Resetting the database](#resetting-the-database). |
+
+---
+
+## Environment variables
+
+Configuration is read from the environment and validated by zod at startup
+(`src/config/env.js`). If anything is missing or malformed the process prints
+the offending keys and **exits immediately** rather than failing later on a
+user request.
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `NODE_ENV` | no | `development` | One of `development`, `test`, `production`. |
+| `PORT` | no | `3000` | `0`–`65535`. `0` asks the OS for an ephemeral port. |
+| `CORS_ORIGIN` | no | `*` | Comma-separated list of allowed origins, or `*`. **Rejected at startup when `NODE_ENV=production`**, where explicit origins are required. |
+| `DATABASE_URL` | **yes** | — | `postgres://` or `postgresql://` connection string. |
+| `DB_POOL_MAX` | no | `10` | Max pooled connections, 1–100. |
+| `POSTGRES_USER` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
+| `POSTGRES_PASSWORD` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
+| `POSTGRES_DB` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
+| `FORTYTWO_CLIENT_ID` | no | — | UID of the 42 application. |
+| `FORTYTWO_CLIENT_SECRET` | no | — | Secret of the 42 application. |
+| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application, e.g. `http://localhost:3001/api/auth/42/callback`. |
+| `FORTYTWO_API_URL` | no | `https://api.intra.42.fr` | Base URL of the intra API (tests point it at a fake server). A trailing slash is dropped. |
+| `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
+| `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
+| `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. **At least 32 characters.** |
+| `BADGE_LOGIN_ALLOWED_IPS` | no | — | Comma-separated IP addresses (spaces allowed) of the kiosk PC, the only machines allowed to log in with a badge, e.g. `10.11.12.13`. IPv4-mapped IPv6 (`::ffff:10.11.12.13`) and IPv6 written in any form are normalised; anything that is not an IP address (host name, CIDR range) is rejected at startup. Empty: badge login answers `503`. In development, `127.0.0.1,::1`. |
+
+An empty value (`KEY=`) is treated as unset for the optional keys above.
+`.env.example` leaves the secrets empty on purpose: a value committed to the
+repository is public, and would turn the feature on with a known secret. Generate
+each secret with `openssl rand -hex 32`. A value of the 42 and badge variables
+that still contains an example placeholder such as `<secret>` is **rejected at
+startup**. `DEVICE_TOKEN` has no minimum length, because it is shared with the
+firmware and changing it means reflashing the ESP32.
+
+**Optional features answer `503` when not configured.** The 42 login is enabled
+only when `FORTYTWO_CLIENT_ID`, `FORTYTWO_CLIENT_SECRET` and
+`FORTYTWO_REDIRECT_URI` are **all** set; otherwise `GET /api/auth/42` responds
+`503` and `GET /api/auth/42/callback` redirects to
+`/login?oauth_error=oauth_unavailable`. The badge reader is enabled only when
+**both** `DEVICE_TOKEN` and `BADGE_UID_SECRET` are set; otherwise every
+`/api/badge` route, `POST /api/hello` and `POST /api/scan` respond `503`. Badge
+login additionally needs `BADGE_LOGIN_ALLOWED_IPS`: without it
+`POST /api/badge/login` and `POST /api/badge/login/confirm` respond `503` —
+badge login is then disabled, never open to everyone. The rest of the API is
+unaffected.
+
+Real values live in `contbuild/.env`, which is git-ignored and shared by every
+service of the team compose. `contbuild/.env.example` sits beside it, is
+committed, and documents every key, including `SESSION_SECRET`, which
+Antonin's `app` service needs to start — copy it to `contbuild/.env` before the
+first `make` or `npm run db:up`, since Compose reads the database credentials
+from there and refuses to start without them. In the `api` container,
+`DATABASE_URL` is replaced so that it targets the `db` service instead of
+`localhost`.
+
+`credentials` is only advertised to the browser when `CORS_ORIGIN` lists
+explicit origins: `*` combined with credentials is rejected by every browser, so
+announcing both would silently break authenticated requests.
+
+---
+
+## Architecture
+
+### The layers
+
+```
+route        declares the URL and validates the request
+controller   reads the request, writes the response — nothing else
+service      makes decisions and talks SQL — knows nothing about HTTP
+```
+
+**A service never receives `req` or `res`.** That single rule is what makes the
+business logic testable in isolation and reusable from a WebSocket handler,
+a CLI script or a background job — anywhere that is not an HTTP request.
+
+If you ever find yourself writing SQL inside a controller, something belongs in
+a service instead.
+
+### Request lifecycle
+
+```
+client
+  │
+  ▼
+app.js         helmet → cors → express.json(100kb) → cookieParser → morgan → rate limits
+  │
+  ▼
+routes/        matches the URL, runs validate({ body, params, query })
+  │
+  ▼
+controllers/   reads req.body / req.params / req.validatedQuery
+  │
+  ▼
+services/      business rules + parameterised SQL
+  │
+  ▼
+db/pool.js ──► PostgreSQL
+  │
+  ▼
+controller     res.status(...).json(...)
+```
+
+Anything thrown at any point jumps straight to `errorHandler`, including
+rejected promises from `async` handlers — Express 5 forwards those
+automatically, so handlers need no `try/catch` wrapper.
+
+### Project layout
+
+```
+src/
+├── server.js              # checks the DB, listens, graceful shutdown
+├── app.js                 # Express assembly: middlewares, routes, error handling
+├── config/env.js          # environment variables, validated with zod
+├── db/
+│   ├── pool.js            # shared pg pool: query, queryOne, transaction
+│   ├── errors.js          # PostgreSQL error codes (23505…)
+│   ├── migrate.js         # migration runner
+│   ├── reset.js           # guarded database reset
+│   └── migrations/*.sql   # schema, versioned, applied in filename order
+├── realtime/badgeSocket.js # WebSocket (`/ws`) that reports badge results to the browser
+├── routes/                # URLs, wired to schemas and controllers
+├── schemas/               # zod schemas, shared with the frontend
+├── controllers/           # request in, response out
+├── services/              # business logic and SQL
+├── middlewares/           # validate, notFound, methodNotAllowed, errorHandler, auth and badge guards
+└── utils/
+    ├── AppError.js        # business errors carrying an HTTP status
+    └── ip.js              # IP address normalisation (badge kiosk allowlist)
+
+tests/
+├── unit/http.test.js      # node --test against createApp(), no network, no DB
+└── db/*.db.test.js        # node --test against a real Postgres, run with `npm run test:db`
+```
+
+`app.js` exports `createApp({ rateLimit })` — a factory — instead of starting a server.
+Network listening lives in `server.js`. This separation is what lets the test
+suite exercise the whole HTTP stack without opening a fixed port or a database
+connection.
+
+### Startup and shutdown
+
+`server.js` runs `SELECT 1` before listening. If the database is unreachable the
+process exits with a clear message instead of serving 500s.
+
+On `SIGINT` / `SIGTERM` it terminates the open badge WebSockets and closes the
+WebSocket server, stops accepting new requests, lets in-flight ones finish,
+releases the connection pool, then exits. A 10-second timer forces the
+exit if a request hangs.
+
+---
+
+## Database
+
+PostgreSQL 17, queried directly with `pg`. **No ORM** — queries stay explicit,
+window functions and PostgreSQL error codes remain available, and the SQL is
+what we defend during evaluation.
+
+### Query helpers — `src/db/pool.js`
+
+| Helper | Returns | Use it for |
+|---|---|---|
+| `query(sql, params)` | `{ rows, rowCount }` | anything that returns several rows, or where `rowCount` matters |
+| `queryOne(sql, params)` | first row, or `undefined` | "fetch this one record" |
+| `transaction(fn)` | whatever `fn` returns | several writes that must all succeed or all fail |
+
+A **single pool** is shared by the whole process. Opening a connection per
+request would overwhelm PostgreSQL; `pg` recycles connections instead.
+
+Inside a transaction, **every query must go through the `client` argument**.
+A call to the module-level `query()` would run on a different pooled
+connection, outside the transaction:
+
+```js
+await transaction(async (client) => {
+  await client.query('INSERT INTO matches ...');  // correct
+  await query('UPDATE users ...');                // WRONG — not in the transaction
+});
+```
+
+### Two non-negotiable rules
+
+**1. Always use parameterised queries.** Values travel separately from the SQL
+text, so PostgreSQL can never mistake data for an instruction. This is what
+closes the door to SQL injection.
+
+```js
+await queryOne('SELECT ... FROM users WHERE id = $1', [id]);   // yes
+query(`SELECT ... FROM users WHERE id = '${id}'`);             // never
+```
+
+**2. The database speaks `snake_case`, the API speaks `camelCase`.** The
+conversion happens once, in the `SELECT`, so controllers never think about it:
+
+```js
+const COLUMNS = 'id, username, email, created_at AS "createdAt", updated_at AS "updatedAt"';
+```
+
+The double quotes are required — without them PostgreSQL lowercases the alias.
+
+### Schema conventions
+
+Choices made in `001_create_users.sql`, and worth repeating in new tables:
+
+- **`uuid` primary keys** (`gen_random_uuid()`, from `pgcrypto`) rather than
+  sequential integers, which leak signup order and are trivially enumerable.
+- **`citext`** for `username` and `email`, so `Lucas` and `lucas` collide under
+  the `UNIQUE` constraint and nobody can impersonate a nickname by changing case.
+- **`timestamptz`**, never bare `timestamp` — the time zone is part of the value.
+- **An `updated_at` trigger** (`set_updated_at()`) so the column is maintained by
+  the database and cannot be forgotten by application code.
+
+---
+
+## Migrations
+
+Every `.sql` file in `src/db/migrations/` is applied **once**, in filename
+order, inside its own transaction, and recorded in the `schema_migrations`
+table. A PostgreSQL advisory lock prevents two runners from migrating
+concurrently.
+
+```bash
+npm run migrate
+```
+
+The command is idempotent: run it as often as you like.
+
+### Adding a migration
+
+Create the next numbered file and run the command again:
+
+```sql
+-- src/db/migrations/003_create_matches.sql
+CREATE TABLE matches (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  player1_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  player2_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  player1_score integer NOT NULL DEFAULT 0,
+  player2_score integer NOT NULL DEFAULT 0,
+  played_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT different_players CHECK (player1_id <> player2_id)
+);
+
+CREATE INDEX matches_player1_idx ON matches (player1_id);
+CREATE INDEX matches_player2_idx ON matches (player2_id);
+```
+
+Use zero-padded numbers (`003`, not `3`): ordering is alphabetical, so `10_`
+would otherwise sort before `2_`.
+
+> **Never edit a migration that has already been applied.** It is recorded in
+> `schema_migrations` and will not run again, so your database and your
+> teammates' would silently diverge. Add a new migration instead.
+
+The only exception is a migration you have just written, have not pushed, and
+can replay from scratch with `npm run db:reset`.
+
+Migration `002` adds a `NOT NULL` column without a default, so it fails if the
+`users` table already holds rows. Run `npm run db:reset` first in development.
+
+### Resetting the database
+
+```bash
+npm run db:reset
+```
+
+Removes only the `db` container and its `contbuild_db-data` volume, then
+recreates an empty database — Antonin's server and the API keep running. Then
+re-run `npm run migrate`, or restart the `api` service, which migrates on
+start. Because this is irreversible, `src/db/reset.js` enforces
+three independent guards and refuses with exit code 1 if any fails:
+
+1. `NODE_ENV` must be **explicitly** `development` or `test`. An unset variable
+   blocks — deliberately not reusing `env.NODE_ENV`, whose `.default('development')`
+   would make a missing variable look like a development machine.
+2. `DATABASE_URL` must point at a local host (`localhost`, `127.0.0.1`, `::1`, `db`).
+3. A confirmation must be typed by hand. `--yes` skips it for scripts; outside a
+   terminal and without `--yes`, the command refuses rather than assuming consent.
+
+---
+
+## Error handling
+
+### Response format
+
+Every error, whatever its origin, comes back in the same shape:
+
+```json
+{
+  "error": {
+    "message": "Human-readable message",
+    "details": [{ "path": "email", "message": "Invalid email address" }]
+  }
+}
+```
+
+`details` is present only for validation failures. **A stack trace is never
+serialised into the response**, in any environment: it is already logged
+server-side, and `NODE_ENV` is too easy to forget at deploy time for a leak of
+filesystem paths and database hosts to depend on it.
+
+### Raising errors
+
+Throw an `AppError` from anywhere — service, controller, middleware. No
+`try/catch` plumbing is needed:
+
+```js
+import { AppError } from '../utils/AppError.js';
+
+throw AppError.notFound(`User ${id} not found`);
+throw AppError.conflict('This username is already taken');
+```
+
+| Factory | Status |
+|---|---|
+| `AppError.badRequest(message, details)` | 400 |
+| `AppError.unauthorized(message)` | 401 |
+| `AppError.forbidden(message)` | 403 |
+| `AppError.notFound(message)` | 404 |
+| `AppError.methodNotAllowed(message)` | 405 |
+| `AppError.conflict(message, details)` | 409 |
+| `AppError.tooManyRequests(message)` | 429 |
+| `AppError.serviceUnavailable(message)` | 503 |
+
+### What reaches the client
+
+`errorHandler` treats an error as **known** — and therefore safe to expose — in
+exactly two cases:
+
+1. it is an `AppError`, i.e. we raised it deliberately;
+2. it follows the `http-errors` convention used by Express and `body-parser`:
+   a 4xx status **and** `expose: true`, meaning its author marked the message as
+   safe. This is what turns malformed JSON into a `400` and an oversized body
+   into a `413` instead of a `500`.
+
+Anything else — a bug, a raw PostgreSQL failure — becomes an anonymous `500`.
+Its message is never sent to the client, only logged server-side. Exposing it
+would hand out table names, SQL fragments and filesystem paths.
+
+Known 4xx errors are **not** logged, so a client sending garbage cannot flood
+the logs.
+
+### Status codes in use
+
+| Code | When |
+|---|---|
+| `200` | successful read or update |
+| `201` | resource created (with a `Location` header) |
+| `204` | successful delete, no body |
+| `400` | validation failed, or malformed JSON |
+| `401` | missing or invalid session cookie on a route that requires one |
+| `403` | authenticated, but not the resource owner; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
+| `404` | unknown route, or missing resource |
+| `405` | known path, unsupported method — carries an `Allow` header |
+| `409` | unique constraint violated, or a badge action is already in progress |
+| `413` | request body larger than 100 kB |
+| `429` | rate limit exceeded (see [Rate limiting](#rate-limiting)) |
+| `500` | unexpected server error |
+| `503` | `/api/health` — the database is unreachable; or an optional feature (42 login, badge reader, badge login without `BADGE_LOGIN_ALLOWED_IPS`) is not configured |
+
+### Conflicts are arbitrated by the database
+
+Creating a user does **not** `SELECT` first to check whether the name is taken.
+It attempts the `INSERT` and translates PostgreSQL error `23505` into a `409`,
+distinguishing which constraint failed:
+
+```js
+function toConflict(err) {
+  if (isUniqueViolation(err, 'users_username_key')) return AppError.conflict('This username is already taken');
+  if (isUniqueViolation(err, 'users_email_key'))    return AppError.conflict('This email is already in use');
+  return null;
+}
+```
+
+Checking before inserting would leave a race window between the two queries.
+Letting the `UNIQUE` constraint decide is atomic by construction — which is also
+how this API satisfies the "no race conditions with simultaneous users"
+requirement.
+
+---
+
+## Validation
+
+Schemas live in `src/schemas/`, one module per resource, and the route file
+wires them to the URLs they protect. They are deliberately **not** declared
+inline: the subject requires the same validation on the frontend and the
+backend, so a single shared definition is what keeps the two from drifting —
+and `z.toJSONSchema()` can later generate the OpenAPI document from these very
+schemas instead of a hand-written copy.
+
+```js
+// src/schemas/users.schema.js
+export const userBody = z.object({
+  username: z.string().trim().min(3).max(20).regex(/^[a-zA-Z0-9_-]+$/),
+  email: z.email(),
+});
+
+// src/routes/users.routes.js
+usersRouter.get('/:id', validate({ params: idParams }), controller.getOne);
+usersRouter.patch(
+  '/:id',
+  validate({ params: idParams, body: userPatchBody }),
+  requireAuth,
+  requireSelf,
+  controller.update,
+);
+```
+
+`userPatchBody` is `userBody.partial()`: the same rules with every field
+optional — exactly the semantics of `PATCH`, with no duplication.
+
+`validate({ body, params, query })` **replaces the raw value with the parsed
+one**. Two consequences worth knowing:
+
+- Unknown keys are stripped. A request carrying `{"username":"x","isAdmin":true}`
+  loses `isAdmin` before it reaches any handler — real protection against mass
+  assignment.
+- `req.query` is read-only in Express 5, so the parsed query lands in
+  **`req.validatedQuery`**. Controllers must read it from there.
+
+---
+
+## API reference
+
+All routes are prefixed with `/api`.
+
+### `GET /health`
+
+Liveness probe. Returns `503` when the database is unreachable, so an
+orchestrator can tell "up" from "usable".
+
+```json
+{ "status": "ok", "uptime": 42.7, "database": "ok" }
+```
+
+### `GET /users`
+
+Paginated list.
+
+| Query | Type | Default | Range |
+|---|---|---|---|
+| `limit` | integer | `20` | 1–100 |
+| `offset` | integer | `0` | 0–10 000 |
+
+```json
+{
+  "total": 137,
+  "items": [
+    {
+      "id": "3f2b…",
+      "username": "lucas",
+      "createdAt": "2026-09-03T01:32:11.114Z"
+    }
+  ]
+}
+```
+
+`total` is computed by a `count(*) OVER ()` window function inside the same
+query, so a page and its total cost **one** round-trip instead of two.
+
+### `POST /auth/register`
+
+Creates the account and opens a session. Responds `201` with the created user,
+a `Location: /api/users/:id` header, and a session cookie.
+
+```json
+{ "username": "lucas", "email": "lucas@42.fr", "password": "SecurePass123" }
+```
+
+Returns `409` if the username or email already exists (case-insensitively).
+
+### `POST /auth/login`
+
+Opens a session. Accepts either email or username as the identifier.
+
+```json
+{ "identifier": "lucas", "password": "SecurePass123" }
+```
+
+Returns `200` with the authenticated user and a session cookie, or `401` if the
+credentials are invalid.
+
+### `POST /auth/logout`
+
+Revokes the current session. Returns `204` with no body, even if called without
+an active session.
+
+### `GET /auth/me`
+
+Returns the authenticated user including their email address. Requires a valid
+session cookie. Returns `401` if unauthenticated.
+
+`GET /users` and `GET /users/:id` expose a public projection — `id`,
+`username`, `createdAt` — with no email address. `PATCH` and `DELETE` require a
+session and reject anyone but the account owner with a `403`.
+
+### `GET /auth/42`
+
+Starts the 42 login. Sets a short-lived `oauth_state` cookie (`HttpOnly`,
+`SameSite=Lax`, path `/api/auth/42`, 10 minutes) holding a random anti-CSRF
+`state`, then redirects (`302`) to the 42 authorize URL. Responds `503` if the
+42 variables are not all set.
+
+### `GET /auth/42/callback`
+
+The URL registered as `FORTYTWO_REDIRECT_URI`. 42 sends the browser back here
+with `code` and `state` (or `error`). The `state` is compared with the cookie,
+the code is exchanged for a token, the profile is fetched, the local account is
+found or created, and the same `sid` session cookie as a password login is
+opened. The browser is then redirected (`302`) to the frontend:
+
+- success: `FRONT_URL/home`;
+- failure: `FRONT_URL/login?oauth_error=<code>`.
+
+| `oauth_error` | Meaning |
+|---|---|
+| `oauth_state` | `state` missing, or different from the `oauth_state` cookie; also a missing `code`. Checked first: a callback carrying `error` with a bad `state` gets `oauth_state`, not `oauth_denied` |
+| `oauth_denied` | the user refused on 42 (the query carries `error`), with a valid `state` |
+| `oauth_email_taken` | the 42 email already belongs to another account |
+| `oauth_unavailable` | 42 login not configured; 42 unreachable, slow or in error; a 42 profile without an integer `id` or without an email; or any other failure |
+
+The callback always answers with a redirect and always clears the
+`oauth_state` cookie, even when the 42 login is not configured: raising an
+error there would log the request URL, which carries the one-time `code`. For
+the same reason the callback is excluded from the request logs.
+
+### `POST /hello`
+
+Device route, called by the ESP32 to announce itself. Requires the
+`X-Device-Token` header. Responds `200` `{ "message": "Bonjour" }`.
+
+### `POST /scan`
+
+Device route, called by the ESP32 for every scanned badge. Requires the
+`X-Device-Token` header.
+
+```json
+{ "uid": "04A1B2C3D4E5F6" }
+```
+
+`uid` is 8 to 20 hexadecimal characters (`400` otherwise). The UID is hashed
+with `BADGE_UID_SECRET` and never stored in clear.
+
+Once the token is accepted, **every business outcome is a `200`** with a French
+`message`, so the firmware never has to interpret an error: badge paired, badge
+already linked to an account, login ready, unknown badge, or no badge action in
+progress. What happened is reported to the browser through the
+[WebSocket](#websocket-ws). Error statuses are limited to `401` (missing or
+wrong token), `400` (invalid body), `405` (a method other than `POST`), `503`
+(badge reader not configured) and `500` (the database failed while linking or
+looking up the badge).
+
+### Badge routes (browser)
+
+All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
+(checked before authentication).
+
+| Route | Auth | Responses |
+|---|---|---|
+| `POST /badge/pairing` | session | `200` `{ "code" }`, `401`, `409` |
+| `POST /badge/login` | kiosk address | `200` `{ "code" }`, `403`, `409`, `429`, `503` |
+| `POST /badge/login/confirm` | kiosk address | `200` the authenticated user + session cookie, `400`, `401`, `403`, `503` |
+| `GET /badge` | session | `200` `{ "linked": boolean }`, `401` |
+| `DELETE /badge` | session | `204`, `401` |
+
+- **`POST /badge/pairing`** opens a 30-second window in which the next scanned
+  badge is linked to the authenticated account. A badge already linked to the
+  account is replaced. Starting a pairing cancels a pending anonymous login
+  window; it answers `409` only when another pairing is in progress.
+- **Badge login is reserved to the kiosk.** Badges are physical and badge login
+  happens from one known, fixed PC, so `POST /badge/login` and
+  `POST /badge/login/confirm` are accepted only from an address listed in
+  `BADGE_LOGIN_ALLOWED_IPS`: `403` from any other address, `503` when the
+  variable is unset. The address is `req.ip` (see
+  [Rate limiting](#rate-limiting) for how it is read), with an IPv4-mapped
+  `::ffff:` prefix removed. The check runs after the `503` of an unconfigured
+  badge reader and before body validation. Pairing, status, unlinking, the
+  device routes and the WebSocket are not restricted: pairing already needs a
+  session, and the `code` of a login window is only ever handed to the kiosk.
+- **`POST /badge/login`** opens a 30-second anonymous window in which the next
+  scanned badge logs in. `409` if any badge action is already in progress.
+- **`POST /badge/login/confirm`** takes `{ "token": "…" }`, the one-time token
+  received over the WebSocket. It is valid for 10 seconds and can be used once;
+  otherwise `401`. On success the response is the same private user as
+  `GET /auth/me`, with a `sid` session cookie.
+- **`GET /badge`** says whether the account has a badge; **`DELETE /badge`**
+  unlinks it (idempotent).
+
+Only one badge action exists at a time, because there is a single reader.
+
+### WebSocket `/ws`
+
+The browser learns the outcome of a pairing or a login window here. The
+connection is served by the same HTTP server and port as the API.
+
+1. Call `POST /api/badge/pairing` or `POST /api/badge/login` and keep the `code`.
+2. Open `ws://<host>/ws` and send **one** JSON message: `{ "code": "<code>" }`.
+3. The server replies with **one** message, then closes the connection:
+   `{ "status": "<status>" }`, or `{ "status": "login-ready", "token": "<token>" }`.
+4. For a login, send the `token` to `POST /api/badge/login/confirm`.
+
+| `status` | Meaning |
+|---|---|
+| `paired` | the badge was linked to the account |
+| `already-linked` | the badge belongs to another account; nothing changed |
+| `login-ready` | a known badge was scanned; comes with `token` |
+| `unknown-badge` | the badge is linked to no account |
+| `not-pairing` | the account disappeared before the badge was linked |
+
+The result is kept for 5 seconds if the scan happens before the socket is
+attached, so a fast scan is not lost. A window holds at most one socket at a
+time; when that socket closes (a page reload, a dropped connection), the window
+is freed and a new socket can attach with the same `code` while the window is
+still open.
+
+The server closes the socket **without any message** when: the first message is
+not JSON with a non-empty string `code` (messages are limited to 1 kB), the
+`code` is unknown, expired or already held by another open socket, no first
+message arrives within 10 seconds, or 35 seconds have elapsed in total. The
+30-second window expires lazily: nothing fires at the 30-second mark; the
+socket of an expired window is closed by the next pairing or badge login
+start, the next scan, or the next socket that sends a `code`, and at the latest
+by the 35-second cap.
+
+### Rate limiting
+
+Counted in memory, answered with `429` in the usual error format (French
+message) plus the standard `RateLimit-*` headers:
+
+| Route | Limit | Counted per |
+|---|---|---|
+| `POST /auth/login` | 10 per minute | client IP **and** identifier |
+| `POST /auth/register` | 5 per minute | client IP |
+| `POST /badge/login` | 1 per 10 seconds | client IP |
+
+The login counter is keyed by the client IP plus `identifier` from the body,
+trimmed and lowercased (the IP alone when `identifier` is not a string). Behind
+the school's NAT the whole campus shares one address: with a per-IP limit, one
+student typing ten wrong passwords would lock everyone out. Ten attempts on one
+identifier now block only that identifier from that address.
+
+`trust proxy` is set to `1`, so the IP is read from `X-Forwarded-For` as set by
+the single reverse proxy in front of the API. Rate limiting is **off by default
+when `NODE_ENV=test`**, so the suites can chain logins freely; `createApp({
+rateLimit: true })` turns it on (the rate-limit test does).
+
+### `GET /users/:id`
+
+Returns the user, or `404`. `:id` must be a UUID, otherwise `400`.
+
+### `PATCH /users/:id`
+
+Partial update — send only the fields you want to change. Returns the updated
+resource, `404` if it does not exist, `409` on a uniqueness conflict.
+
+### `DELETE /users/:id`
+
+Returns `204` with no body. `401` if unauthenticated, `403` if not the account
+owner, `404` if the resource does not exist.
+
+---
+
+## Adding a new resource
+
+Four files and one line, always in this order. Copy `users` and rename.
+
+**1. Migration** — `src/db/migrations/003_create_matches.sql`, then
+`npm run migrate`.
+
+**2. Service** — `src/services/matches.service.js`. Business rules and SQL. No
+`req`, no `res`.
+
+```js
+import { query, queryOne } from '../db/pool.js';
+import { AppError } from '../utils/AppError.js';
+
+const COLUMNS = 'id, player1_id AS "player1Id", player2_id AS "player2Id", played_at AS "playedAt"';
+
+export async function getMatch(id) {
+  const match = await queryOne(`SELECT ${COLUMNS} FROM matches WHERE id = $1`, [id]);
+  if (!match) throw AppError.notFound(`Match ${id} not found`);
+  return match;
+}
+```
+
+**3. Controller** — `src/controllers/matches.controller.js`. Translation only.
+
+```js
+import * as matchesService from '../services/matches.service.js';
+
+export async function getOne(req, res) {
+  res.json(await matchesService.getMatch(req.params.id));
+}
+```
+
+**4. Routes** — `src/routes/matches.routes.js`. URLs and schemas.
+
+```js
+import { Router } from 'express';
+import { z } from 'zod';
+import { validate } from '../middlewares/validate.js';
+import * as controller from '../controllers/matches.controller.js';
+
+const idParams = z.object({ id: z.uuid() });
+
+export const matchesRouter = Router();
+matchesRouter.get('/:id', validate({ params: idParams }), controller.getOne);
+```
+
+**5. Mount it** in `src/routes/index.js`:
+
+```js
+apiRouter.use('/matches', matchesRouter);
+```
+
+---
+
+## Testing
+
+```bash
+npm test
+npm run test:db
+```
+
+`tests/unit/http.test.js` uses the built-in `node:test` runner and global
+`fetch` — no extra dependency. It boots `createApp()` on an ephemeral port and
+exercises the full HTTP chain: routing, validation, 404 and 405 handling, CORS
+and cache headers, and error translation. **It needs no database**, because
+none of the covered paths reach one — the `npm test` script passes a dummy
+`DATABASE_URL` inline and reads no `.env` file at all. This is the property
+`npm test` (and only `npm test`) has: `npm run test:db`, below, does need one.
+
+Two cases are asserted directly against `errorHandler` rather than over HTTP:
+triggering a real `500` would depend on the database being down, so the result
+would change from one machine to the next.
+
+`tests/db/*.db.test.js` are the integration tests that do touch SQL:
+registration, login, logout, `me`, session lifecycle, ownership on `PATCH` and
+`DELETE`, and the public/private user projections. Run them with
+`npm run test:db` against a running database (`npm run db:up`, then
+`npm run migrate`). Each test creates its own accounts with random usernames
+and deletes them on exit, so the suite never needs an empty database and never
+leaves one dirty — point it at the development database without fear, but
+never at production.
+
+### Manual requests
+
+`requests/api.http` is a ready-made collection for the JetBrains HTTP Client
+(open it in WebStorm and click the green arrow next to any request). It covers
+registration, login, `me`, the public directory, an owner `PATCH`, logout, and
+the documented failure modes; the register request stores the created id and
+session cookie so the following requests reuse them.
+
+It also covers the 42 login start, the device routes (`/hello`, `/scan`) and
+the badge routes.
+
+Pick the environment (`dev` or `docker`) from the selector at the top right;
+values live in `requests/http-client.env.json`. Secrets belong in
+`requests/http-client.private.env.json`, which is git-ignored. The device
+requests use a `{{deviceToken}}` variable that must match `DEVICE_TOKEN`: define
+it there, for each environment:
+
+```json
+{
+  "dev": { "deviceToken": "<same value as DEVICE_TOKEN in .env>" }
+}
+```
+
+`GET /auth/42` answers `302` to 42 and the request is marked `# @no-redirect`, so
+the redirect is not followed and its `Location` header can be inspected; run it
+from a browser to complete the whole flow. The WebSocket cannot be exercised
+from this file: use a browser, or a tool such as `websocat`.
+
+---
+
+## Conventions summary
+
+- Business errors are `AppError`s; everything else is an anonymous `500`.
+- Validation lives in the route file, never inside a controller.
+- Services never see `req` or `res`.
+- SQL values are always parameterised (`$1`, `$2`…).
+- The database is `snake_case`; the JSON API is `camelCase`.
+- Applied migrations are immutable; corrections are new migrations.
+- Secrets belong in `.env`, which is never committed.
+
+---
+
+## Known limitations
+
+- **Pairing hijack by physical presence.** If someone scans their own badge
+  during the 30 seconds in which you pair yours, their badge is linked to your
+  account and they can then log in as you. This is inherent to the "next scan
+  wins" model.
+- **Badge login windows block each other.** While one `POST /badge/login`
+  window is open, another one gets `409`; since badge login is reserved to the
+  kiosk addresses, only the kiosk can cause this.
+- **A logged-in account can hold the reader.** Pairing needs a session but is
+  not limited: an account reopening a pairing every 30 seconds keeps the single
+  badge slot busy and blocks the badge reader for everyone.
+- **Email squatting on the 42 login.** 42 emails are predictable and local
+  emails are not verified. Someone can register a local account with a
+  student's 42 email before that student's first 42 login; the student then
+  gets `oauth_email_taken` with no way around it. This is the price of
+  refusing automatic linking by email, which would otherwise allow an account
+  takeover.
+- **The kiosk restriction relies on the WAF.** `BADGE_LOGIN_ALLOWED_IPS` is
+  compared with `req.ip`, read from `X-Forwarded-For` because `trust proxy` is
+  `1`. That is only trustworthy behind the team's WAF: the API must never be
+  reachable directly, or anyone can forge the header and pass as the kiosk.
+- **No cap on WebSocket connections per IP.** `/ws` limits each socket's
+  message size and lifetime, but not how many sockets one client opens; that
+  belongs to the WAF.
+- **Badge state lives in memory.** Pending windows, results and login tokens
+  exist only inside one API process: run a single instance.
+- **The physical ESP32 cannot reach the API yet.** It needs the team's WAF in
+  place (it listens on 8443 while the firmware targets 3000) and the
+  `transcendence.local` name announced on the network. Until then, test the
+  device routes with `requests/api.http` or `curl`.
+
+---
+
+## Not implemented yet
+
+| Area | Plan |
+|---|---|
+| HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
+| WAF routing | Point the WAF's `/api` traffic at the `api` service and retire `infra/`, once Antonin has validated the integration. |
+| Real-time (game, chat) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; other real-time features will reuse it. |
+| Linting | ESLint + Prettier, to be agreed on before several people commit. |

@@ -1,11 +1,23 @@
+firmware/secrets.h
+
+# Node / API
 node_modules/
+.env
+**/.env
+*.log
+
+# Cybersecurity: TLS key/cert, Vault secrets and AppRole credentials
 cybersecurity/waf/certs/*.key
 cybersecurity/waf/certs/*.crt
 cybersecurity/vault/secrets/*.env
 cybersecurity/vault/run/
+
+# IDE / OS
+.idea/
 .DS_Store
-.env
-**/.env
+
+# WebStorm HTTP Client — secrets (tokens, API keys)
+http-client.private.env.json
 
 # 42 subject (not part of the project)
 en.subject.pdf

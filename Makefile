@@ -2,17 +2,24 @@
 # cybersecurity/docker-compose.yml comes first: it sets the project directory
 # (for relative paths) and the project name "cybersecurity" (keeps the vault-data volume).
 export COMPOSE_FILE = cybersecurity/docker-compose.yml:contbuild/docker-compose.yml:cybersecurity/docker-compose.app.yml
+# Variables of the Compose files (POSTGRES_*): without this, Compose would look for them
+# in cybersecurity/.env, the directory of the first file
+ENV_FILE = contbuild/.env
+export COMPOSE_ENV_FILES = $(ENV_FILE)
 SECRETS = cybersecurity/vault/secrets/app.env
 CERT = cybersecurity/waf/certs/server.crt
 KEY = cybersecurity/waf/certs/server.key
 
-all: $(SECRETS) $(CERT)
+all: $(ENV_FILE) $(SECRETS) $(CERT)
 	@clear
 	docker compose up -d vault
 	bash cybersecurity/vault/scripts/bootstrap.sh
 	docker compose up --build -d
+	# nginx resolves the app address only at startup: if the app was recreated with a new IP,
+	# the WAF would answer 502. Restarting nginx makes it resolve the current address.
+	docker compose restart nginx
 
-$(SECRETS):
+$(ENV_FILE) $(SECRETS):
 	@echo "Missing $@: copy $@.example to $@ and fill in the values" && exit 1
 
 # Self-signed certificate for local development (ignored by Git), created only if missing
@@ -30,7 +37,7 @@ a_wish:
 	@echo "\nConteneurs en cours :"
 	@docker ps -a
 	@echo "\n"
-	docker compose logs app
+	docker compose logs
 	@echo "\n"
 
 stop:
@@ -43,7 +50,17 @@ clean:
 	@echo "After cleaning :"
 	@docker ps -a
 
+fclean:
+	@printf "Attention : la base de données et les images construites seront supprimées. Continuer ? [y/N] "
+	@read ans && [ "$$ans" = y ]
+	# Removes the database volume only: the Vault volume (cybersecurity_vault-data) is kept,
+	# otherwise Vault would have to be initialized again and ~/vault-init.json would be useless
+	docker compose down --rmi local
+	docker volume rm -f cybersecurity_db-data
+	@echo "After cleaning :"
+	@docker ps -a
+
 re:
 	@make clean && make
 
-.PHONY: all status clean re
+.PHONY: all a_wish stop clean fclean re

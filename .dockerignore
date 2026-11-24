@@ -1,5 +1,10 @@
-.git
-node_modules
-.env
 **/.env
+**/.env.*
+!**/.env.example
+**/*.sqlite*
+**/node_modules
+.git
+.idea
+.superpowers
+webapp/backend
 cybersecurity

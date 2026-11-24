@@ -9,6 +9,7 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 # Same Compose files as the Makefile
 export COMPOSE_FILE="${COMPOSE_FILE:-cybersecurity/docker-compose.yml:contbuild/docker-compose.yml:cybersecurity/docker-compose.app.yml}"
+export COMPOSE_ENV_FILES="${COMPOSE_ENV_FILES:-contbuild/.env}"
 pass=0
 fail=0
 

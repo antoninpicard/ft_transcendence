@@ -1,6 +1,8 @@
 services:
   app:
     ports: !reset []
+    # The app gets its secrets from Vault only, never from contbuild/.env
+    env_file: !reset []
     command: ["node", "/vault/vault-exec.js", "npm", "start"]
     environment:
       VAULT_ADDR: http://vault:8200
@@ -18,3 +20,9 @@ services:
       BACKEND: http://app:3000
     depends_on:
       - app
+
+  api:
+    # Paths are relative to cybersecurity/ (directory of the first Compose file)
+    env_file: !override
+      - path: ../contbuild/.env
+        required: false
