@@ -237,17 +237,27 @@ describe('messages directs', () => {
     const all = await call('GET', `/api/messages/${b.id}`, { cookie: a.cookie });
     const ids = all.json.items.map((m) => m.id);
     assert.equal(ids.length, 5);
+    const { rows: ties } = await query(
+      'SELECT DISTINCT created_at FROM messages WHERE sender_id = $1',
+      [a.id],
+    );
+    assert.equal(ties.length, 1);
     const walked = [];
-    let cursor = null;
+    const pages = [];
+    let cursor = ids[0];
     for (;;) {
-      const qs = cursor ? `?after=${cursor}&limit=2` : '?limit=100';
-      const page = await call('GET', `/api/messages/${b.id}${qs}`, { cookie: a.cookie });
+      const page = await call('GET', `/api/messages/${b.id}?after=${cursor}&limit=2`, {
+        cookie: a.cookie,
+      });
+      assert.equal(page.res.status, 200);
       if (page.json.items.length === 0) break;
+      pages.push(page.json.items.length);
       walked.push(...page.json.items.map((m) => m.id));
       cursor = page.json.items.at(-1).id;
-      if (walked.length > 5) break;
+      assert.ok(walked.length <= 4);
     }
-    assert.deepEqual(walked, ids);
+    assert.deepEqual(pages, [2, 2]);
+    assert.deepEqual(walked, ids.slice(1));
     const back = await call('GET', `/api/messages/${b.id}?before=${ids[4]}&limit=2`, {
       cookie: a.cookie,
     });
@@ -273,8 +283,18 @@ describe('messages directs', () => {
     const { a, b } = await friends();
     await send(a, b, 'salut');
     await send(b, a, 'oui');
+    await createApiKey(b.id, 'test');
     const del = await call('DELETE', `/api/users/${b.id}`, { cookie: b.cookie });
     assert.equal(del.res.status, 204);
+    const leftovers = {
+      messages: 'SELECT 1 FROM messages WHERE sender_id = $1 OR recipient_id = $1',
+      friendships: 'SELECT 1 FROM friendships WHERE requester_id = $1 OR addressee_id = $1',
+      api_keys: 'SELECT 1 FROM api_keys WHERE user_id = $1',
+    };
+    for (const [table, sql] of Object.entries(leftovers)) {
+      const { rows } = await query(sql, [b.id]);
+      assert.equal(rows.length, 0, table);
+    }
 
     const list = await call('GET', '/api/messages', { cookie: a.cookie });
     assert.equal(list.res.status, 200);
@@ -303,5 +323,11 @@ describe('messages directs', () => {
       body: { body: 'trop' },
     });
     assert.equal(over.res.status, 429);
+    const other = await call('POST', `/api/messages/${a.id}`, {
+      url: limitedBase,
+      cookie: b.cookie,
+      body: { body: 'toujours là' },
+    });
+    assert.equal(other.res.status, 201);
   });
 });
