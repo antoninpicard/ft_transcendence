@@ -174,6 +174,9 @@ client
 app.js         helmet → cors → express.json(100kb) → cookieParser → morgan → rate limits
   │
   ▼
+authenticate   Bearer key or session cookie → req.user (anonymous if neither)
+  │
+  ▼
 routes/        matches the URL, runs validate({ body, params, query })
   │
   ▼
@@ -211,9 +214,10 @@ src/
 ├── schemas/               # zod schemas, shared with the frontend
 ├── controllers/           # request in, response out
 ├── services/              # business logic and SQL
-├── middlewares/           # validate, notFound, methodNotAllowed, errorHandler, auth and badge guards
+├── middlewares/           # authenticate, requireAuth, requireSession, validate, notFound, methodNotAllowed, errorHandler, badge guards
 └── utils/
     ├── AppError.js        # business errors carrying an HTTP status
+    ├── apiKey.js          # API key generation, format check and hashing
     └── ip.js              # IP address normalisation (badge kiosk allowlist)
 
 tests/
@@ -433,14 +437,14 @@ the logs.
 | Code | When |
 |---|---|
 | `200` | successful read or update |
-| `201` | resource created (with a `Location` header) |
+| `201` | resource created |
 | `204` | successful delete, no body |
 | `400` | validation failed, or malformed JSON |
-| `401` | missing or invalid session cookie on a route that requires one |
-| `403` | authenticated, but not the resource owner; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
+| `401` | no credentials, an unknown session cookie, or an invalid `Authorization` header on a route that requires a login |
+| `403` | authenticated, but not the resource owner; a route reserved to a browser session called with an API key; writing to someone who is not your friend; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
 | `404` | unknown route, or missing resource |
 | `405` | known path, unsupported method — carries an `Allow` header |
-| `409` | unique constraint violated, or a badge action is already in progress |
+| `409` | unique constraint violated, a friend request already pending or accepted, the 10-key limit reached, or a badge action is already in progress |
 | `413` | request body larger than 100 kB |
 | `429` | rate limit exceeded (see [Rate limiting](#rate-limiting)) |
 | `500` | unexpected server error |
@@ -596,7 +600,7 @@ Same format as everywhere (see [Error handling](#error-handling)); messages are
 in French:
 
 ```json
-{ "error": { "message": "Clé d API invalide" } }
+{ "error": { "message": "Clé d'API invalide" } }
 ```
 
 Validation failures (`400`) add `details`. In `PUT`/`PATCH`/`DELETE /users/:id`,
@@ -1020,6 +1024,61 @@ An unknown cursor, one from another conversation, or `after` together with
 
 ---
 
+## Adding a new resource
+
+Four files and one line, always in this order. Copy `users` and rename.
+
+**1. Migration** — `src/db/migrations/006_create_matches.sql`, then
+`npm run migrate`.
+
+**2. Service** — `src/services/matches.service.js`. Business rules and SQL. No
+`req`, no `res`.
+
+```js
+import { query, queryOne } from '../db/pool.js';
+import { AppError } from '../utils/AppError.js';
+
+const COLUMNS = 'id, player1_id AS "player1Id", player2_id AS "player2Id", played_at AS "playedAt"';
+
+export async function getMatch(id) {
+  const match = await queryOne(`SELECT ${COLUMNS} FROM matches WHERE id = $1`, [id]);
+  if (!match) throw AppError.notFound(`Match ${id} not found`);
+  return match;
+}
+```
+
+**3. Controller** — `src/controllers/matches.controller.js`. Translation only.
+
+```js
+import * as matchesService from '../services/matches.service.js';
+
+export async function getOne(req, res) {
+  res.json(await matchesService.getMatch(req.params.id));
+}
+```
+
+**4. Routes** — `src/routes/matches.routes.js`. URLs and schemas.
+
+```js
+import { Router } from 'express';
+import { z } from 'zod';
+import { validate } from '../middlewares/validate.js';
+import * as controller from '../controllers/matches.controller.js';
+
+const idParams = z.object({ id: z.uuid() });
+
+export const matchesRouter = Router();
+matchesRouter.get('/:id', validate({ params: idParams }), controller.getOne);
+```
+
+**5. Mount it** in `src/routes/index.js`:
+
+```js
+apiRouter.use('/matches', matchesRouter);
+```
+
+---
+
 ## Testing
 
 ```bash
@@ -1140,6 +1199,11 @@ from this file: use a browser, or a tool such as `websocat`.
   messages) exist inside one API process and reset on restart: run a single
   instance.
 - **API keys do not expire.** A key is valid until it is revoked.
+- **Polling can skip a message committed out of order.** `after=<id>` returns
+  messages created after the cursor message. Two messages sent at almost the
+  same instant can be committed in the opposite order of their timestamps, so
+  a client may in rare cases miss one: the front should re-fetch the last few
+  messages from time to time.
 
 ---
 

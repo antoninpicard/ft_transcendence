@@ -273,6 +273,22 @@ Content-Type: application/json
     }
 %}
 
+### Second account login — 200, stores its id and cookie (use this when the register above answered 409)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "marie",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 200) {
+        client.global.set("friendId", response.body.id);
+        client.global.set("friendCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
 ### Send a friend request — 201 { status: "pending", user }; 200 "accepted" if they had already asked
 POST {{host}}/api/friends/requests
 Content-Type: application/json
