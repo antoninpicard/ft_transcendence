@@ -29,3 +29,16 @@ services:
     env_file: !override
       - path: ../contbuild/.env
         required: false
+    # Same start command as contbuild/api.Dockerfile, run through vault-exec.js: it logs in
+    # with the backend AppRole, reads secret/backend/app and adds it to the environment
+    # (Vault values win over contbuild/.env)
+    command: ["node", "/vault/vault-exec.js", "sh", "-c", "node src/db/migrate.js && exec node src/server.js"]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_SECRET_PATH: secret/data/backend/app
+    volumes:
+      - ./vault/wrapper/vault-exec.js:/vault/vault-exec.js:ro
+      - ./vault/run/backend:/run/vault:ro
+    networks:
+      - default
+      - vault-net
