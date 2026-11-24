@@ -508,6 +508,146 @@ one**. Two consequences worth knowing:
 
 ---
 
+## Public API
+
+Besides the browser session, the API can be called with a personal **API key**,
+for scripts and third-party clients. Every route that does not touch the
+account's security accepts one; the few that do are reserved to the session.
+
+### Getting a key
+
+Keys are managed from a logged-in session (a key cannot create other keys, so a
+stolen one cannot spread). Create one, with a free name of 1 to 50 characters:
+
+```bash
+curl -c jar.txt -H 'Content-Type: application/json' \
+  -d '{"identifier":"lucas","password":"SecurePass123"}' \
+  http://localhost:3001/api/auth/login
+
+curl -b jar.txt -H 'Content-Type: application/json' \
+  -d '{"name":"my script"}' \
+  http://localhost:3001/api/keys
+```
+
+```json
+{
+  "id": "9c1e…",
+  "name": "my script",
+  "prefix": "trk_AbCd1234",
+  "createdAt": "2026-11-19T10:00:00.000Z",
+  "lastUsedAt": null,
+  "key": "trk_AbCd1234…"
+}
+```
+
+The full `key` (`trk_` followed by 43 URL-safe characters) is shown **once**, in
+this response. Only its SHA-256 hash is stored: it can never be listed or
+recovered, so keep it somewhere safe and create a new one if it is lost.
+`prefix` (the first 12 characters) lets you recognise a key in `GET /keys`.
+An account holds at most **10** keys (`409` beyond). Revoking a key
+(`DELETE /keys/:id`) takes effect immediately.
+
+### Authenticating with a key
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" http://localhost:3001/api/auth/me
+```
+
+- The scheme is `Bearer`, spelled exactly like that (case-sensitive), followed
+  by one space and the key.
+- When an `Authorization` header is present it is the only credential looked
+  at: the session cookie is ignored.
+- **A present but invalid header answers `401` on every `/api` route**,
+  public ones, `POST /auth/logout` and the device routes included: a client
+  sending a key must learn that it is wrong instead of silently being treated
+  as anonymous. Invalid means: not `Bearer <key>`, malformed, unknown or
+  revoked.
+- Without an `Authorization` header, the `sid` cookie is used as before; no
+  cookie, or an expired one, is an anonymous caller, not an error.
+- A valid key updates its `lastUsedAt`.
+
+### Session-only routes
+
+A valid key is refused with `403` (`Cette action exige une session`) on:
+
+| Route | Why |
+|---|---|
+| `POST /keys`, `GET /keys`, `DELETE /keys/:id` | a stolen key must not create more keys |
+| `POST /badge/pairing`, `GET /badge`, `DELETE /badge` | a stolen key must not link an attacker's badge to the account |
+| `DELETE /users/:id` | deleting the account is irreversible |
+
+Routes that need a login answer `401` without credentials, before any `403`.
+The kiosk routes `POST /badge/login` and `POST /badge/login/confirm`, the device
+routes (`/hello`, `/scan`) and the OAuth routes read no `Authorization` header
+for authentication: they stay as documented below (kiosk address, device
+token). Note that an invalid `Authorization` header is still refused with `401`
+before reaching them.
+
+### Rate limit
+
+**60 requests per minute per key**, one counter for every request carrying the
+key, error responses included. Beyond that, `429` in the usual error format with
+the `RateLimit-*` headers. Requests not authenticated by a key (session,
+anonymous, invalid key) are not counted here.
+
+### Errors
+
+Same format as everywhere (see [Error handling](#error-handling)); messages are
+in French:
+
+```json
+{ "error": { "message": "Clé d API invalide" } }
+```
+
+Validation failures (`400`) add `details`. In `PUT`/`PATCH /users/:id` and in
+`POST /keys` and `DELETE /keys/:id`, validation runs before authentication, so
+an invalid body gets `400` even without credentials.
+
+### Endpoints usable with a key
+
+| Method and route | Statuses |
+|---|---|
+| `GET /health` | `200`, `503` |
+| `GET /users` | `200`, `400` |
+| `GET /users/:id` | `200` (with `relation`), `400`, `404` |
+| `PUT /users/:id` | `200`, `400`, `401`, `403` (not the owner), `404`, `409` |
+| `PATCH /users/:id` | `200`, `400`, `401`, `403` (not the owner), `404`, `409` |
+| `GET /auth/me` | `200`, `401` |
+| `GET /friends` | `200`, `401` |
+| `GET /friends/requests` | `200`, `401` |
+| `POST /friends/requests` | `201`, `200` (crossed request), `400`, `401`, `404`, `409` |
+| `POST /friends/requests/:userId/accept` | `200`, `400`, `401`, `404` |
+| `DELETE /friends/requests/:userId` | `204`, `400`, `401`, `404` |
+| `DELETE /friends/:userId` | `204`, `400`, `401`, `404` |
+| `GET /messages` | `200`, `401` |
+| `GET /messages/:userId` | `200`, `400`, `401` |
+| `POST /messages/:userId` | `201`, `400`, `401`, `403` (not friends), `404`, `429` |
+
+Every route also answers `401` for an invalid key and `429` once the key's
+limit is reached. Details of each route are in the [API reference](#api-reference).
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" \
+  'http://localhost:3001/api/users?limit=5'
+
+curl -X PUT -H "Authorization: Bearer $API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"lucas","email":"lucas@42.fr"}' \
+  http://localhost:3001/api/users/$USER_ID
+
+curl -X POST -H "Authorization: Bearer $API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d "{\"userId\":\"$FRIEND_ID\"}" \
+  http://localhost:3001/api/friends/requests
+
+curl -X POST -H "Authorization: Bearer $API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"Salut !"}' \
+  http://localhost:3001/api/messages/$FRIEND_ID
+```
+
+---
+
 ## API reference
 
 All routes are prefixed with `/api`.
@@ -571,16 +711,19 @@ credentials are invalid.
 ### `POST /auth/logout`
 
 Revokes the current session. Returns `204` with no body, even if called without
-an active session.
+an active session. It only looks at the cookie, but a request carrying an invalid
+`Authorization` header is refused with `401` first (see
+[Public API](#public-api)).
 
 ### `GET /auth/me`
 
 Returns the authenticated user including their email address. Requires a valid
-session cookie. Returns `401` if unauthenticated.
+session cookie or API key. Returns `401` if unauthenticated.
 
 `GET /users` and `GET /users/:id` expose a public projection — `id`,
-`username`, `createdAt` — with no email address. `PATCH` and `DELETE` require a
-session and reject anyone but the account owner with a `403`.
+`username`, `createdAt` — with no email address. `PUT` and `PATCH` accept a
+session or an API key, `DELETE` a session only; all three reject anyone but the
+account owner with a `403`.
 
 ### `GET /auth/42`
 
@@ -720,6 +863,13 @@ message) plus the standard `RateLimit-*` headers:
 | `POST /auth/login` | 10 per minute | client IP **and** identifier |
 | `POST /auth/register` | 5 per minute | client IP |
 | `POST /badge/login` | 1 per 10 seconds | client IP |
+| every `/api` request carrying a valid API key | 60 per minute | API key |
+| `POST /messages/:userId` | 30 per minute | authenticated user |
+
+The key counter counts every request made with the key, errors included, and
+ignores session and anonymous requests. The message counter is shared between
+the session and the keys of the same user, and counts every attempt, refused
+ones included.
 
 The login counter is keyed by the client IP plus `identifier` from the body,
 trimmed and lowercased (the IP alone when `identifier` is not a string). Behind
@@ -734,72 +884,139 @@ rateLimit: true })` turns it on (the rate-limit test does).
 
 ### `GET /users/:id`
 
-Returns the user, or `404`. `:id` must be a UUID, otherwise `400`.
+Returns the public user, or `404`. `:id` must be a UUID, otherwise `400`. When
+the caller is authenticated (session or valid key), the response also carries
+`relation`, how the caller stands with this user:
+
+```json
+{ "id": "3f2b…", "username": "lucas", "createdAt": "2026-09-03T01:32:11.114Z", "relation": "friends" }
+```
+
+`relation` is `self`, `friends`, `request-sent`, `request-received` or `none`.
+Anonymous callers, or ones with an expired cookie, get the user without
+`relation`; an invalid `Authorization` header gets `401`.
+
+### `PUT /users/:id`
+
+Replaces the modifiable fields at once: `username` (3 to 20 characters, letters,
+digits, `_` and `-`) and `email`, **both required**. Account owner only, with a
+session or an API key. Returns `200` with the updated private user (email
+included). `400` if a field is missing or invalid, `401` if unauthenticated,
+`403` if not the owner, `404` if it does not exist, `409` if the username or
+email is already taken.
+
+```json
+{ "username": "lucas", "email": "lucas@42.fr" }
+```
 
 ### `PATCH /users/:id`
 
-Partial update — send only the fields you want to change. Returns the updated
-resource, `404` if it does not exist, `409` on a uniqueness conflict.
+Partial update — send only the fields you want to change. Same access rules and
+statuses as `PUT`; returns the updated private user.
 
 ### `DELETE /users/:id`
 
-Returns `204` with no body. `401` if unauthenticated, `403` if not the account
-owner, `404` if the resource does not exist.
+Returns `204` with no body. Session only: `401` if unauthenticated, `403` if
+not the account owner or if called with an API key, `404` if the resource does
+not exist.
 
----
+### `GET /keys`
 
-## Adding a new resource
+Session only. Lists the caller's keys, newest first. The key itself is never
+returned.
 
-Four files and one line, always in this order. Copy `users` and rename.
-
-**1. Migration** — `src/db/migrations/003_create_matches.sql`, then
-`npm run migrate`.
-
-**2. Service** — `src/services/matches.service.js`. Business rules and SQL. No
-`req`, no `res`.
-
-```js
-import { query, queryOne } from '../db/pool.js';
-import { AppError } from '../utils/AppError.js';
-
-const COLUMNS = 'id, player1_id AS "player1Id", player2_id AS "player2Id", played_at AS "playedAt"';
-
-export async function getMatch(id) {
-  const match = await queryOne(`SELECT ${COLUMNS} FROM matches WHERE id = $1`, [id]);
-  if (!match) throw AppError.notFound(`Match ${id} not found`);
-  return match;
+```json
+{
+  "items": [
+    {
+      "id": "9c1e…",
+      "name": "my script",
+      "prefix": "trk_AbCd1234",
+      "createdAt": "2026-11-19T10:00:00.000Z",
+      "lastUsedAt": "2026-11-19T10:05:00.000Z"
+    }
+  ]
 }
 ```
 
-**3. Controller** — `src/controllers/matches.controller.js`. Translation only.
+`lastUsedAt` is `null` for a key that was never used. `401` without a session,
+`403` with an API key.
 
-```js
-import * as matchesService from '../services/matches.service.js';
+### `POST /keys`
 
-export async function getOne(req, res) {
-  res.json(await matchesService.getMatch(req.params.id));
+Session only. Body `{ "name": "my script" }` (trimmed, 1 to 50 characters).
+Responds `201` with the same object as the list plus `key`, the only time the
+full key is shown. `400` on an invalid name (checked before authentication),
+`401`, `403` with an API key, `409` when the account already has 10 keys.
+
+### `DELETE /keys/:id`
+
+Session only. Revokes the key immediately and responds `204`. `404` if the key
+does not exist **or belongs to someone else** (its existence is not revealed),
+`400` if `:id` is not a UUID, `401`, `403` with an API key.
+
+### Friends
+
+Every friends route needs a session or an API key (`401` otherwise). A user is
+always the public projection `{ id, username, createdAt }`. There is one
+relation per pair of users: declining, cancelling or removing deletes it, and a
+new request can be sent afterwards. `:userId` must be a UUID (`400`). The lists
+are not paginated.
+
+| Route | Success | Other statuses |
+|---|---|---|
+| `GET /friends` | `200` `{ "items": [{ "user", "since" }] }`, `since` = acceptance date, newest first | |
+| `GET /friends/requests` | `200` `{ "incoming": [{ "user", "createdAt" }], "outgoing": [{ "user", "createdAt" }] }`, newest first | |
+| `POST /friends/requests` | `201` `{ "status": "pending", "user" }`; `200` `{ "status": "accepted", "user" }` if the other user had already asked me | `400` (invalid body, or myself), `404` (unknown user), `409` (already friends, or a request I sent is pending) |
+| `POST /friends/requests/:userId/accept` | `200` `{ "status": "accepted", "user" }` | `404` (no pending request received from this user) |
+| `DELETE /friends/requests/:userId` | `204`: declines the request received from `:userId` or cancels the one sent to them | `404` (no pending request with this user) |
+| `DELETE /friends/:userId` | `204` | `404` (not friends) |
+
+`POST /friends/requests` takes `{ "userId": "<uuid>" }`. Accepting when already
+friends, removing a friend who is only a pending request, and declining a
+request when already friends all answer `404`: the expected state does not
+exist.
+
+### Messages
+
+Chat between friends, one conversation per pair. Every messages route needs a
+session or an API key (`401` otherwise). A message is:
+
+```json
+{
+  "id": "5d7a…",
+  "senderId": "3f2b…",
+  "recipientId": "8e41…",
+  "body": "Salut !",
+  "createdAt": "2026-11-19T10:00:00.000Z"
 }
 ```
 
-**4. Routes** — `src/routes/matches.routes.js`. URLs and schemas.
+| Route | Success | Other statuses |
+|---|---|---|
+| `GET /messages` | `200` `{ "items": [{ "user", "lastMessage" }] }`, newest conversation first, not paginated | |
+| `GET /messages/:userId` | `200` `{ "items": [message, …] }`, oldest first | `400` (invalid `:userId` or query, unknown or foreign cursor, `after` with `before`) |
+| `POST /messages/:userId` | `201` the created message | `400` (invalid body, or myself), `403` (not friends), `404` (unknown user), `429` |
 
-```js
-import { Router } from 'express';
-import { z } from 'zod';
-import { validate } from '../middlewares/validate.js';
-import * as controller from '../controllers/matches.controller.js';
+`POST` takes `{ "body": "…" }`: a string trimmed at both ends, 1 to 2000
+characters. It is stored as is; escaping HTML is up to the front-end. Sending
+requires being friends, **reading does not**: history stays readable after the
+friendship ends. A conversation with nobody, or with an unknown `:userId`, reads
+as an empty `items`. Only your own conversations are ever readable.
 
-const idParams = z.object({ id: z.uuid() });
+`GET /messages/:userId` pagination: the cursor is a message `id`, ordered by
+`(createdAt, id)` inside the conversation. `items` is always chronological.
 
-export const matchesRouter = Router();
-matchesRouter.get('/:id', validate({ params: idParams }), controller.getOne);
-```
+| Query | Result |
+|---|---|
+| none | the `limit` most recent messages |
+| `after=<id>` | the `limit` oldest messages after that one (polling for new messages) |
+| `before=<id>` | the `limit` most recent messages before that one (older history) |
+| `limit` | 1 to 100, default 50 |
 
-**5. Mount it** in `src/routes/index.js`:
-
-```js
-apiRouter.use('/matches', matchesRouter);
-```
+An unknown cursor, one from another conversation, or `after` together with
+`before`, answers `400`. Sending is limited to 30 messages per minute per user
+(see [Rate limiting](#rate-limiting)).
 
 ---
 
@@ -839,8 +1056,9 @@ registration, login, `me`, the public directory, an owner `PATCH`, logout, and
 the documented failure modes; the register request stores the created id and
 session cookie so the following requests reuse them.
 
-It also covers the 42 login start, the device routes (`/hello`, `/scan`) and
-the badge routes.
+It also covers the 42 login start, the device routes (`/hello`, `/scan`), the
+badge routes, API keys (creation from the session, use on `GET /auth/me` and
+`PUT /users/:id`, revocation) and the friends and messages flows.
 
 Pick the environment (`dev` or `docker`) from the selector at the top right;
 values live in `requests/http-client.env.json`. Secrets belong in
@@ -853,6 +1071,15 @@ it there, for each environment:
   "dev": { "deviceToken": "<same value as DEVICE_TOKEN in .env>" }
 }
 ```
+
+The API key requests use `{{apiKey}}`, the `key` returned when the key is
+created. The create request stores it in a global variable for the following
+requests; to reuse a key across sessions, define `apiKey` in the same private
+file. Never put a real key in `api.http`.
+
+The friends and messages flow needs a second account: `{{friendId}}` is the id
+of another user, and `{{friendCookie}}` its session cookie (the "second
+account" requests register and log it in).
 
 `GET /auth/42` answers `302` to 42 and the request is marked `# @no-redirect`, so
 the redirect is not followed and its `Location` header can be inspected; run it
@@ -904,6 +1131,15 @@ from this file: use a browser, or a tool such as `websocat`.
   place (it listens on 8443 while the firmware targets 3000) and the
   `transcendence.local` name announced on the network. Until then, test the
   device routes with `requests/api.http` or `curl`.
+- **Messages are polled.** There is no push: a client asks for new messages
+  every few seconds with `GET /messages/:userId?after=<id>`, so they appear
+  with a short delay.
+- **No blocking.** An unwanted friend is removed, and can then no longer write;
+  they can send a new friend request, though.
+- **Rate limits live in memory.** Counters (login, registration, API keys,
+  messages) exist inside one API process and reset on restart: run a single
+  instance.
+- **API keys do not expire.** A key is valid until it is revoked.
 
 ---
 
@@ -913,5 +1149,5 @@ from this file: use a browser, or a tool such as `websocat`.
 |---|---|
 | HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
 | WAF routing | Point the WAF's `/api` traffic at the `api` service and retire `infra/`, once Antonin has validated the integration. |
-| Real-time (game, chat) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; other real-time features will reuse it. |
+| Real-time (game, chat push) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; chat works by polling, and the game and message push would reuse this server. |
 | Linting | ESLint + Prettier, to be agreed on before several people commit. |

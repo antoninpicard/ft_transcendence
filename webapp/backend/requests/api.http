@@ -194,6 +194,139 @@ Cookie: {{sessionCookie}}
 
 
 ###############################################################################
+# API keys — managed from the session; a key is shown once, then usable with Authorization: Bearer
+###############################################################################
+
+# The key is stored in the {{apiKey}} global by the creation request. To reuse a key across
+# sessions, define apiKey in http-client.private.env.json (git-ignored). Never commit a real key.
+
+### Create a key — 201 { id, name, prefix, createdAt, lastUsedAt, key }, session only, key shown once
+POST {{host}}/api/keys
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "name": "http client"
+}
+
+> {%
+    client.test("key created", function () {
+        client.assert(response.status === 201, "expected 201, got " + response.status);
+    });
+    if (response.status === 201) {
+        client.global.set("apiKey", response.body.key);
+        client.global.set("apiKeyId", response.body.id);
+    }
+%}
+
+### List keys — 200 { items }, prefix only, never the key
+GET {{host}}/api/keys
+Cookie: {{sessionCookie}}
+
+### Current user with the key — 200, same as the session
+GET {{host}}/api/auth/me
+Authorization: Bearer {{apiKey}}
+
+### Replace the profile with the key — 200, username and email both required, owner only
+PUT {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "lucas@42.fr"
+}
+
+### Revoke the key — 204, effective immediately (the key then gets 401)
+DELETE {{host}}/api/keys/{{apiKeyId}}
+Cookie: {{sessionCookie}}
+
+###############################################################################
+# Friends and messages — needs a second account; the first one is the stored session
+###############################################################################
+
+### Second account — 201, stores its id and cookie (409 if it already exists: log in instead)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "marie",
+  "email": "marie@42.fr",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 201) {
+        client.global.set("friendId", response.body.id);
+        client.global.set("friendCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Send a friend request — 201 { status: "pending", user }; 200 "accepted" if they had already asked
+POST {{host}}/api/friends/requests
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "userId": "{{friendId}}"
+}
+
+### My requests — { incoming, outgoing }
+GET {{host}}/api/friends/requests
+Cookie: {{sessionCookie}}
+
+### Their requests — the request shows up in incoming
+GET {{host}}/api/friends/requests
+Cookie: {{friendCookie}}
+
+### Profile with the relation — "request-sent" for me, "request-received" for them
+GET {{host}}/api/users/{{friendId}}
+Cookie: {{sessionCookie}}
+
+### Accept the request as the other account — 200 { status: "accepted", user }
+POST {{host}}/api/friends/requests/{{userId}}/accept
+Cookie: {{friendCookie}}
+
+### My friends — { items: [{ user, since }] }
+GET {{host}}/api/friends
+Cookie: {{sessionCookie}}
+
+### Send a message — 201, friends only (403 otherwise), 30 per minute per user
+POST {{host}}/api/messages/{{friendId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "body": "Salut !"
+}
+
+> {%
+    if (response.status === 201) {
+        client.global.set("messageId", response.body.id);
+    }
+%}
+
+### My conversations — { items: [{ user, lastMessage }] }, newest first
+GET {{host}}/api/messages
+Cookie: {{friendCookie}}
+
+### Read a conversation — oldest first, the 50 latest by default
+GET {{host}}/api/messages/{{userId}}?limit=50
+Cookie: {{friendCookie}}
+
+### Poll for new messages — only those after the cursor (the stored message id)
+GET {{host}}/api/messages/{{friendId}}?after={{messageId}}
+Cookie: {{sessionCookie}}
+
+### Older history — the messages before the cursor
+GET {{host}}/api/messages/{{friendId}}?before={{messageId}}
+Cookie: {{sessionCookie}}
+
+### Remove the friend — 204; history stays readable, sending is refused afterwards
+DELETE {{host}}/api/friends/{{friendId}}
+Cookie: {{sessionCookie}}
+
+###############################################################################
 # Error paths — every one of these must fail in the documented way
 ###############################################################################
 
@@ -293,3 +426,49 @@ X-Forwarded-For: 203.0.113.9
         client.assert(response.status === 403, "expected 403, got " + response.status);
     });
 %}
+
+### 401 — invalid API key, on any route
+GET {{host}}/api/users
+Authorization: Bearer trk_invalid
+
+### 401 — wrong scheme (the scheme is case-sensitive: Bearer)
+GET {{host}}/api/auth/me
+Authorization: bearer {{apiKey}}
+
+### 403 — a key cannot manage keys (create a key first)
+GET {{host}}/api/keys
+Authorization: Bearer {{apiKey}}
+
+### 403 — a key cannot delete the account
+DELETE {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+
+### 400 — PUT without email
+PUT {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "username": "lucas"
+}
+
+### 400 — friend request to myself
+POST {{host}}/api/friends/requests
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "userId": "{{userId}}"
+}
+
+### 403 — message to someone who is not a friend (remove the friend first)
+POST {{host}}/api/messages/{{friendId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "body": "Toujours là ?"
+}
+
+### 401 — friends without credentials
+GET {{host}}/api/friends
