@@ -1,0 +1,10 @@
+**/.env
+**/.env.*
+!**/.env.example
+**/*.sqlite*
+cybersecurity/waf/certs
+**/node_modules
+.git
+.idea
+.superpowers
+webapp/backend
