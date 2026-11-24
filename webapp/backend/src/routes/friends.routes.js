@@ -27,15 +27,16 @@ friendsRouter.delete(
   validate({ params: userIdParams }),
   controller.deleteRequest,
 );
+
+friendsRouter.all('/', methodNotAllowed('GET'));
+friendsRouter.all('/requests', methodNotAllowed('GET', 'POST'));
+friendsRouter.all('/requests/:userId/accept', methodNotAllowed('POST'));
+friendsRouter.all('/requests/:userId', methodNotAllowed('DELETE'));
+
 friendsRouter.delete(
   '/:userId',
   requireAuth,
   validate({ params: userIdParams }),
   controller.removeFriend,
 );
-
-friendsRouter.all('/', methodNotAllowed('GET'));
-friendsRouter.all('/requests', methodNotAllowed('GET', 'POST'));
-friendsRouter.all('/requests/:userId/accept', methodNotAllowed('POST'));
-friendsRouter.all('/requests/:userId', methodNotAllowed('DELETE'));
 friendsRouter.all('/:userId', methodNotAllowed('DELETE'));

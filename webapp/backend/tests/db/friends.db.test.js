@@ -7,10 +7,13 @@ let closePool;
 let uniqueUser, cleanupUsers;
 let createApp;
 let createApiKey;
+let pool;
+let sendFriendRequest;
 let base;
 
 before(async () => {
-  ({ closePool } = await import('../../src/db/pool.js'));
+  ({ closePool, pool } = await import('../../src/db/pool.js'));
+  ({ sendFriendRequest } = await import('../../src/services/friends.service.js'));
   ({ uniqueUser, cleanupUsers } = await import('./helpers.js'));
   ({ createApiKey } = await import('../../src/services/apiKeys.service.js'));
   ({ createApp } = await import('../../src/app.js'));
@@ -283,5 +286,38 @@ describe('routes des amis', () => {
     assert.equal(wrong.res.status, 405);
     const wrongRequests = await call('PUT', '/api/friends/requests', { cookie: a.cookie });
     assert.equal(wrongRequests.res.status, 405);
+    const deleteRequests = await call('DELETE', '/api/friends/requests', { cookie: a.cookie });
+    assert.equal(deleteRequests.res.status, 405);
+    assert.equal(deleteRequests.res.headers.get('allow'), 'GET, POST');
+  });
+
+  it('répond 404 si la cible disparaît pendant la demande', async () => {
+    const [a, b] = [await account(), await account()];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM users WHERE id = $1', [b.id]);
+      const pending = sendFriendRequest(a.id, b.id);
+      const outcome = pending.then(
+        () => null,
+        (err) => err,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await client.query('COMMIT');
+      const err = await outcome;
+      assert.equal(err?.statusCode, 404);
+    } finally {
+      client.release();
+    }
+  });
+
+  it('ne laisse pas un tiers annuler la demande des autres', async () => {
+    const [a, b, c] = [await account(), await account(), await account()];
+    await ask(a, b);
+    const attempt = await call('DELETE', `/api/friends/requests/${a.id}`, { cookie: c.cookie });
+    assert.equal(attempt.res.status, 404);
+    const requests = await call('GET', '/api/friends/requests', { cookie: b.cookie });
+    assert.equal(requests.json.incoming.length, 1);
+    assert.equal(requests.json.incoming[0].user.id, a.id);
   });
 });

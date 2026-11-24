@@ -126,6 +126,14 @@ describe('authenticate', () => {
     assert.equal(withCookie.res.status, 204);
   });
 
+  it('refuse la suppression du compte avec une clé valide et un cookie valide', async () => {
+    const { id, cookie, apiKey } = await account();
+    const both = await call('DELETE', `/api/users/${id}`, { bearer: apiKey.key, cookie });
+    assert.equal(both.res.status, 403);
+    const stillThere = await call('GET', '/api/auth/me', { cookie });
+    assert.equal(stillThere.res.status, 200);
+  });
+
   it('limite une clé à 60 requêtes par minute', async () => {
     const { apiKey } = await account(limitedBase);
     for (let i = 0; i < 60; i += 1) {
