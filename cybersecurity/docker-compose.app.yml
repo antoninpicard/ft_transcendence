@@ -18,6 +18,9 @@ services:
     # In the integrated stack, the WAF protects the real app (not the whoami test backend)
     environment:
       BACKEND: http://app:3000
+    volumes:
+      # Adds the /api and /ws routes to the API (see the file)
+      - ./waf/nginx/location_common.conf.template:/etc/nginx/templates/includes/location_common.conf.template:ro
     depends_on:
       - app
 

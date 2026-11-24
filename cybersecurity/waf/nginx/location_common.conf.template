@@ -1,0 +1,51 @@
+# Replaces includes/location_common.conf.template of the owasp/modsecurity-crs image
+# (integrated stack only, see ../../docker-compose.app.yml).
+# The first part is a copy of the image's file; the API routes are added at the end.
+# This file is included in both server blocks (HTTP and HTTPS) of the image. ModSecurity
+# is enabled at the http level, so these locations are filtered by the WAF too.
+
+location /healthz {
+    access_log off;
+    add_header Content-Type text/plain;
+    return 200 "OK";
+}
+
+location /metrics/nginx {
+    access_log off;
+    allow ${METRICS_ALLOW_FROM};
+    deny ${METRICS_DENY_FROM};
+    proxy_store off;
+    stub_status;
+}
+
+error_page 500 502 503 504  /50x.html;
+location = /50x.html {
+    root /usr/share/nginx/html;
+}
+
+# --- API (webapp/backend): /api/... and its WebSocket /ws ---
+# Everything else (location /) still goes to BACKEND (the app).
+location ~ ^/(api/|ws$) {
+    client_max_body_size 1m;
+
+    include includes/cors.conf;
+
+    proxy_set_header Host $host;
+    proxy_set_header Proxy "";
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_connect_timeout 60s;
+    proxy_read_timeout 3600s;
+    proxy_redirect off;
+
+    # A variable makes nginx resolve "api" at request time (resolver of the image,
+    # valid=5s), so a recreated api container with a new IP is found without a restart.
+    set $api_upstream http://api:3000;
+    proxy_pass $api_upstream;
+}
