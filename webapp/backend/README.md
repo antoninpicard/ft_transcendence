@@ -599,7 +599,7 @@ in French:
 { "error": { "message": "Clé d API invalide" } }
 ```
 
-Validation failures (`400`) add `details`. In `PUT`/`PATCH /users/:id` and in
+Validation failures (`400`) add `details`. In `PUT`/`PATCH`/`DELETE /users/:id`,
 `POST /keys` and `DELETE /keys/:id`, validation runs before authentication, so
 an invalid body gets `400` even without credentials.
 

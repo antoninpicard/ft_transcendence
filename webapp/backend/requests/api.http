@@ -89,6 +89,20 @@ Cookie: {{sessionCookie}}
     });
 %}
 
+### Login again — 200, the logout above revoked the session; the sections below need a fresh one
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "lucas",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 200) {
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
 
 ###############################################################################
 # 42 OAuth — answers 302 to the 42 authorize page, or 503 when not configured
@@ -199,6 +213,7 @@ Cookie: {{sessionCookie}}
 
 # The key is stored in the {{apiKey}} global by the creation request. To reuse a key across
 # sessions, define apiKey in http-client.private.env.json (git-ignored). Never commit a real key.
+# The key is revoked by the last request of this file, after the error requests that still need it.
 
 ### Create a key — 201 { id, name, prefix, createdAt, lastUsedAt, key }, session only, key shown once
 POST {{host}}/api/keys
@@ -236,10 +251,6 @@ Content-Type: application/json
   "username": "lucas",
   "email": "lucas@42.fr"
 }
-
-### Revoke the key — 204, effective immediately (the key then gets 401)
-DELETE {{host}}/api/keys/{{apiKeyId}}
-Cookie: {{sessionCookie}}
 
 ###############################################################################
 # Friends and messages — needs a second account; the first one is the stored session
@@ -472,3 +483,7 @@ Cookie: {{sessionCookie}}
 
 ### 401 — friends without credentials
 GET {{host}}/api/friends
+
+### Revoke the key (run last) — 204, effective immediately (the key then gets 401)
+DELETE {{host}}/api/keys/{{apiKeyId}}
+Cookie: {{sessionCookie}}
