@@ -254,6 +254,122 @@ a:hover {
 	color: #fffdf8;
 }
 
+.home {
+	width: min(100%, 900px);
+	margin: 30px auto;
+}
+
+.home .home-hero {
+	width: 100%;
+	margin: 0 0 24px;
+	text-align: center;
+}
+
+.home-kicker {
+	margin: 0 0 8px;
+	color: var(--caramel);
+	font-size: 0.85rem;
+	font-weight: 700;
+	letter-spacing: 0.3em;
+}
+
+.dealer-line {
+	max-width: 520px;
+	margin: 18px auto 6px;
+	padding: 14px 18px;
+	border: 1px dashed var(--line);
+	border-radius: 12px;
+	background: #fff9ed;
+	font-style: italic;
+}
+
+.dealer-line p {
+	margin: 0;
+	color: var(--chocolate);
+	font-size: 1.1rem;
+}
+
+.dealer-line footer {
+	margin-top: 4px;
+	color: var(--chocolate-soft);
+	font-size: 0.85rem;
+	font-style: normal;
+}
+
+.home-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 20px;
+}
+
+.home-card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 22px;
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: rgba(255, 253, 247, 0.94);
+	box-shadow: 0 12px 30px rgba(75, 45, 32, 0.09);
+	color: var(--chocolate);
+	font-weight: 400;
+	text-decoration: none;
+	transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.home-card:hover {
+	transform: translateY(-4px) rotate(-0.6deg);
+	box-shadow: 0 16px 34px rgba(75, 45, 32, 0.14);
+	color: var(--chocolate);
+}
+
+.home-card-play {
+	background: linear-gradient(160deg, #fffdf7, #f8ebd5);
+}
+
+.home-card h2 {
+	margin: 0;
+	color: var(--caramel);
+}
+
+.home-card p {
+	margin: 0;
+	color: var(--chocolate-soft);
+}
+
+.home-card-icon {
+	font-size: 2.4rem;
+	line-height: 1;
+}
+
+.home-card .action-link {
+	align-self: flex-start;
+	margin-top: auto;
+}
+
+.status-list {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.status-list li {
+	padding: 6px 10px;
+	border-radius: 8px;
+	background: var(--cream-deep);
+}
+
+.status-list .status-on {
+	background: #e1efd9;
+	color: #365b32;
+}
+
+.status-list .status-off {
+	color: var(--danger);
+}
+
 @media (max-width: 620px) {
 	body {
 		padding: 16px 12px 32px;
