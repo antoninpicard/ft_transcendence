@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import LoginView from "./views/LoginView.vue";
 import SignupView from "./views/SignupView.vue";
@@ -6,7 +7,8 @@ import SettingsView from "./views/SettingsView.vue";
 import PrivacyView from "./views/PrivacyView.vue";
 import TermsView from "./views/TermsView.vue";
 
-// guest: only for logged-out users, auth: only for logged-in users
+export const currentUser = ref(null);
+
 const routes = [
 	{ path: "/", redirect: "/login" },
 	{ path: "/login", component: LoginView, meta: { title: "Connexion", guest: true } },
@@ -15,35 +17,34 @@ const routes = [
 	{ path: "/settings", component: SettingsView, meta: { title: "Paramètres", auth: true } },
 	{ path: "/privacy", component: PrivacyView, meta: { title: "Privacy Policy" } },
 	{ path: "/terms", component: TermsView, meta: { title: "Terms of Service" } },
-	{ path: "/:page(login|signup|home|settings|privacy|terms).html", redirect: (to) => "/" + to.params.page },
 	{ path: "/:unknown(.*)", redirect: "/login" }
 ];
 
 const router = createRouter({ history: createWebHistory(), routes });
 
-// Ask the server whether the session cookie belongs to a logged-in user
-async function isLoggedIn()
+// Ask the server who owns the session cookie: the account, or null if nobody is logged in
+async function fetchCurrentUser()
 {
 	try
 	{
 		const response = await fetch("/api/auth/me");
-		return response.ok;
+		if (!response.ok)
+			return null;
+		return await response.json();
 	}
 	catch
 	{
-		return false;
+		return null;
 	}
 }
 
-// Redirect away from pages the user is not allowed to see
+// Refresh the logged-in account, then keep guests out of "auth" pages and logged-in users out of "guest" pages
 router.beforeEach(async (to) =>
 {
-	if (!to.meta.auth && !to.meta.guest)
-		return true;
-	const loggedIn = await isLoggedIn();
-	if (to.meta.auth && !loggedIn)
+	currentUser.value = await fetchCurrentUser();
+	if (to.meta.auth && !currentUser.value)
 		return "/login";
-	if (to.meta.guest && loggedIn)
+	if (to.meta.guest && currentUser.value)
 		return "/home";
 	return true;
 });
@@ -51,7 +52,7 @@ router.beforeEach(async (to) =>
 // Update the tab title after each navigation
 router.afterEach((to) =>
 {
-	document.title = (to.meta.title ? to.meta.title + " — " : "") + "Jackpot";
+	document.title = to.meta.title + " — CLB Private Club";
 });
 
 export default router;

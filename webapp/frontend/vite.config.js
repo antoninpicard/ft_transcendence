@@ -1,10 +1,9 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
-import tailwindcss from "@tailwindcss/vite";
 
 // Build the Vue front into dist/; in dev mode (npm run dev), forward /api and /ws to the API on port 3001
 export default defineConfig({
-	plugins: [vue(), tailwindcss()],
+	plugins: [vue()],
 	build: {
 		outDir: "dist",
 		emptyOutDir: true
