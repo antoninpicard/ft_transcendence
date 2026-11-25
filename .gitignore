@@ -12,3 +12,6 @@ node_modules/
 # WebStorm HTTP Client — secrets (tokens, API keys)
 http-client.private.env.json
 
+
+# Vue front build output
+webapp/frontend/dist/
