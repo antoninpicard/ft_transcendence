@@ -87,7 +87,7 @@ onMounted(init);
 				<p class="home-quote-label">Phrase de motivation</p>
 				<blockquote>« {{ quote.text }} »</blockquote>
 				<figcaption>— {{ quote.author }}</figcaption>
-				<button type="button" class="secondary-button" @click="newQuote">🎲 Une autre</button>
+				<button type="button" class="secondary-button" @click="newQuote">Une autre</button>
 			</figure>
 
 			<RouterLink class="home-card" to="/settings">
