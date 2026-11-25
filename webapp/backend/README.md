@@ -383,7 +383,7 @@ The migrations in place today:
 | `003_add_oauth_and_badges.sql` | nullable `password_hash` for 42-only accounts, `users.fortytwo_id`, `badges` |
 | `004_add_api_keys_friends_messages.sql` | `api_keys`, `friendships` (one row per pair, `pending` or `accepted`), `messages` |
 | `005_index_friendships_messages_api_keys.sql` | indexes on the foreign keys and lookup columns of the three tables above |
-| `006_add_two_factor.sql` | `users.totp_secret` (base32, `NULL` while 2FA is off), `users.totp_enabled` (default `false`), `users.totp_last_step` (last accepted code, against replays) |
+| `006_add_two_factor.sql` | `users.totp_secret` (base32; `NULL` until the first setup and after 2FA is turned off), `users.totp_enabled` (default `false`), `users.totp_last_step` (last accepted code, against replays) |
 
 Every table that points at `users` does so with `ON DELETE CASCADE`: deleting an
 account removes its sessions, badge, API keys, friendships and messages.
@@ -404,10 +404,11 @@ Migration `002` adds a `NOT NULL` column without a default, so it fails if the
 npm run db:reset
 ```
 
-Removes only the `db` container and its `contbuild_db-data` volume, then
-recreates an empty database — Antonin's server and the API keep running. Then
-re-run `npm run migrate`, or restart the `api` service, which migrates on
-start. Because this is irreversible, `src/db/reset.js` enforces
+Removes only the `db` container of `contbuild/docker-compose.yml` and its
+`contbuild_db-data` volume — the development database — then recreates an empty
+one; nothing else is stopped. Then re-run `npm run migrate`. The full stack's
+database (`cybersecurity_db-data`) is **not** touched: `make fclean` resets that
+one. Because this is irreversible, `src/db/reset.js` enforces
 three independent guards and refuses with exit code 1 if any fails:
 
 1. `NODE_ENV` must be **explicitly** `development` or `test`. An unset variable
@@ -493,7 +494,7 @@ the logs.
 | `200` | successful read or update; also a friend request that is accepted on the spot, and a login (password or badge) that still waits for the 2FA code (`{ "twoFactorRequired": true }`) |
 | `201` | resource created (account, API key, friend request, message); registration also sets a `Location` header |
 | `204` | successful delete or logout, turning 2FA on or off, no body |
-| `400` | validation failed (body, params or query), malformed JSON, a body sent without `Content-Type: application/json`, a friend request or message to yourself, an unknown pagination cursor, or a wrong code (or a missing setup) when turning 2FA on or off |
+| `400` | validation failed (body, params or query), malformed JSON, a body sent without `Content-Type: application/json`, a friend request or message to yourself, an unknown pagination cursor, or, for 2FA, a wrong code, `enable` before any `setup`, or `disable` while 2FA is off |
 | `401` | a route that needs a login called without valid credentials; wrong login credentials; a wrong device token or badge login token; a missing, expired or wrong 2FA login code; or **any** `/api` request carrying an invalid `Authorization` header |
 | `403` | authenticated, but not the account owner; a route reserved to a browser session called with an API key; writing to someone who is not your friend; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
 | `404` | unknown route; missing user or API key; no pending friend request, or no friendship, with this user |
@@ -602,7 +603,7 @@ A user appears in two projections, and never with its password hash:
 | private | `id`, `username`, `email`, `createdAt`, `updatedAt` | the account owner only: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /auth/session` (inside `user`), `PUT` / `PATCH /users/:id`, `POST /badge/login/confirm`, `POST /auth/2fa/verify` |
 
 The 2FA columns (`totp_secret`, `totp_enabled`, `totp_last_step`) are in
-neither projection: `GET /auth/2fa` is the only way to know whether 2FA is on.
+neither projection: the account owner reads the 2FA state with `GET /auth/2fa`.
 
 ### Logging in: session cookie or API key
 
@@ -652,6 +653,9 @@ for scripts and third-party clients. Every route that does not touch the
 account's security accepts one; the few that do are reserved to the session.
 
 ### Getting a key
+
+The examples below target `npm run dev` (`http://localhost:3001`); behind the
+WAF, use `https://localhost:8443` and `curl -k` for the self-signed certificate.
 
 Keys are managed from a logged-in session (a key cannot create other keys, so a
 stolen one cannot spread). Create one, with a free name of 1 to 50 characters:
@@ -1181,7 +1185,9 @@ The browser learns the outcome of a pairing or a login window here. The
 connection is served by the same HTTP server and port as the API.
 
 1. Call `POST /api/badge/pairing` or `POST /api/badge/login` and keep the `code`.
-2. Open `ws://<host>/ws` and send **one** JSON message: `{ "code": "<code>" }`.
+2. Open the WebSocket (`wss://localhost:8443/ws` behind the WAF,
+   `ws://localhost:3001/ws` with `npm run dev`) and send **one** JSON message:
+   `{ "code": "<code>" }`.
 3. The server replies with **one** message, then closes the connection:
    `{ "status": "<status>" }`, or `{ "status": "login-ready", "token": "<token>" }`.
 4. For a login, send the `token` to `POST /api/badge/login/confirm`.
@@ -1502,7 +1508,11 @@ badge routes, API keys (creation from the session, use on `GET /auth/me` and
 `PUT /users/:id`, revocation) and the friends and messages flows.
 
 Pick the environment (`dev` or `docker`) from the selector at the top right;
-values live in `requests/http-client.env.json`. Secrets belong in
+values live in `requests/http-client.env.json`: `dev` targets `npm run dev`
+(`http://localhost:3001`), `docker` the full stack behind the WAF
+(`https://localhost:8443`). For `docker`, accept the self-signed certificate
+with `"SSLConfiguration": { "verifyHostCertificate": false }` in that
+environment of the private file below. Secrets belong in
 `requests/http-client.private.env.json`, which is git-ignored. The device
 requests use a `{{deviceToken}}` variable that must match `DEVICE_TOKEN`: define
 it there, for each environment:
