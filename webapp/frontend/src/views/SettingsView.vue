@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { request, startBadgeAction } from "../api.js";
+import TwoFactorSettings from "../components/TwoFactorSettings.vue";
 
 const linked = ref(false);
 const badgeStatus = ref("Chargement...");
@@ -71,5 +72,7 @@ onUnmounted(() => pairingSocket?.close());
 			<button v-if="linked" type="button" class="secondary-button" @click="unlink">Délier mon badge</button>
 		</div>
 		<p v-if="pairingStatus" class="form-message" role="status" aria-live="polite">{{ pairingStatus }}</p>
+
+		<TwoFactorSettings />
 	</section>
 </template>

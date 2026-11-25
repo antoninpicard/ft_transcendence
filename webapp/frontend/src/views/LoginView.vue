@@ -43,7 +43,16 @@ function loginErrorMessage(status)
 	return "Erreur serveur, réessaie plus tard.";
 }
 
-// Validate the form, log in with an email or a username, and go home on success
+// After a successful first step, go to the 2FA code page if the API asks for it, otherwise go home
+function goAfterLogin(data)
+{
+	if (data.twoFactorRequired)
+		router.push("/login/2fa");
+	else
+		router.push("/home");
+}
+
+// Validate the form, log in with an email or a username, then continue to the code page or home
 async function submitLogin()
 {
 	error.value = formProblem();
@@ -59,7 +68,7 @@ async function submitLogin()
 		error.value = loginErrorMessage(response.status);
 		return;
 	}
-	router.push("/home");
+	goAfterLogin(response.data);
 }
 
 // Leave the site for the 42 intranet: the API redirects there, then back to /home
@@ -78,7 +87,7 @@ async function startBadgeLogin()
 		{
 			const confirm = await request("POST", "/api/badge/login/confirm", { token: message.token });
 			if (confirm.ok)
-				router.push("/home");
+				goAfterLogin(confirm.data);
 			else
 				badgeStatus.value = "Erreur de connexion.";
 		}

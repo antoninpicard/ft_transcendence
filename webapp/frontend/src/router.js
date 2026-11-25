@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import LoginView from "./views/LoginView.vue";
+import TwoFactorView from "./views/TwoFactorView.vue";
 import SignupView from "./views/SignupView.vue";
 import HomeView from "./views/HomeView.vue";
 import SettingsView from "./views/SettingsView.vue";
@@ -12,6 +13,7 @@ export const currentUser = ref(null);
 const routes = [
 	{ path: "/", redirect: "/login" },
 	{ path: "/login", component: LoginView, meta: { title: "Connexion", guest: true } },
+	{ path: "/login/2fa", component: TwoFactorView, meta: { title: "Code de sécurité", guest: true } },
 	{ path: "/signup", component: SignupView, meta: { title: "Inscription", guest: true } },
 	{ path: "/home", component: HomeView, meta: { title: "Accueil", auth: true } },
 	{ path: "/settings", component: SettingsView, meta: { title: "Paramètres", auth: true } },
@@ -22,15 +24,16 @@ const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes });
 
-// Ask the server who owns the session cookie: the account, or null if nobody is logged in
+// Ask the server who owns the session cookie: the account, or null if nobody is logged in (always a 200, so no error in the console)
 async function fetchCurrentUser()
 {
 	try
 	{
-		const response = await fetch("/api/auth/me");
+		const response = await fetch("/api/auth/session");
 		if (!response.ok)
 			return null;
-		return await response.json();
+		const data = await response.json();
+		return data.user;
 	}
 	catch
 	{
