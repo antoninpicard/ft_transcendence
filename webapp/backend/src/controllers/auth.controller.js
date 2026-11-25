@@ -1,6 +1,7 @@
 import * as authService from '../services/auth.service.js';
 import { revokeSession } from '../services/sessions.service.js';
 import { openSession } from './openSession.js';
+import { openSessionOrAskCode } from './openSessionOrAskCode.js';
 import { SESSION_COOKIE, clearCookieOptions } from '../config/cookies.js';
 
 export async function register(req, res) {
@@ -11,7 +12,7 @@ export async function register(req, res) {
 
 export async function login(req, res) {
   const user = await authService.verifyCredentials(req.body.identifier, req.body.password);
-  await openSession(res, user.id);
+  if (await openSessionOrAskCode(res, user.id)) return res.json({ twoFactorRequired: true });
   res.json(user);
 }
 
@@ -23,4 +24,8 @@ export async function logout(req, res) {
 
 export async function me(req, res) {
   res.json(req.user);
+}
+
+export async function session(req, res) {
+  res.json({ user: req.authMethod === 'session' ? req.user : null });
 }

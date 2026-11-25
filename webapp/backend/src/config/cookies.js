@@ -35,3 +35,19 @@ export const oauthStateCookieOptions = {
   ...clearOauthStateCookieOptions,
   maxAge: OAUTH_STATE_TTL_MS,
 };
+
+export const TWO_FACTOR_COOKIE = 'twofa_pending';
+
+const TWO_FACTOR_TTL_MS = 5 * 60 * 1000;
+
+export const clearTwoFactorCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: isSecureCookieEnv(process.env.NODE_ENV),
+  path: '/api/auth/2fa',
+};
+
+export const twoFactorCookieOptions = {
+  ...clearTwoFactorCookieOptions,
+  maxAge: TWO_FACTOR_TTL_MS,
+};
