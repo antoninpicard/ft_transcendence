@@ -61,6 +61,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
+import '../game.css';
 import ticket1 from '../assets/tickets/ticket_1.JPG';
 import ticket2 from '../assets/tickets/ticket_2.JPG';
 import ticket3 from '../assets/tickets/ticket_3.JPG';

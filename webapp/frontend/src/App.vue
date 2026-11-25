@@ -21,6 +21,7 @@ async function logout()
 			<nav aria-label="Navigation principale">
 				<template v-if="currentUser">
 					<RouterLink to="/home">Accueil</RouterLink>
+					<RouterLink to="/game">Jeux</RouterLink>
 					<RouterLink to="/settings">Paramètres</RouterLink>
 					<button type="button" class="secondary-button" @click="logout">Déconnexion</button>
 				</template>
