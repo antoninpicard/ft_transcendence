@@ -9,7 +9,11 @@ const QUOTES = [
 	{ text: "Chaque ticket gratté est un pas de plus vers le jackpot.", author: "tmarion" },
 	{ text: "Gratte avec le cœur, gagne avec le sourire.", author: "tmarion" },
 	{ text: "Séquence ratée ? Recommence : c'est comme ça qu'on devient bon.", author: "fdeleard" },
-	{ text: "La patience est la meilleure des mises.", author: "fdeleard" }
+	{ text: "La patience est la meilleure des mises.", author: "fdeleard" },
+	{ text: "Le WAF veille sur toi : toi, tu n'as plus qu'à gratter.", author: "allefran" },
+	{ text: "Un bon joueur garde ses secrets… dans un coffre-fort.", author: "allefran" },
+	{ text: "Chaque requête compte, chaque ticket aussi.", author: "lucnavar" },
+	{ text: "Mise sur tes amis : ensemble, on gratte plus loin.", author: "lucnavar" }
 ];
 
 const quote = ref(QUOTES[0]);
