@@ -74,3 +74,11 @@ services:
     networks:
       - default
       - vault-net
+
+networks:
+  # Fixed subnet: a browser on the host is always seen by the API as 172.30.0.1 (the
+  # gateway), so BADGE_LOGIN_ALLOWED_IPS works the same way on every machine
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
