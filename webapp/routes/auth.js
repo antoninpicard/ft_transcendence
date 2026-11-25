@@ -74,5 +74,17 @@ router.get("/me", (req, res) =>
 	res.json({ user });
 });
 
+// End the current session
+router.post("/logout", (req, res) =>
+{
+    req.session.destroy((err) =>
+    {
+        if (err)
+            return res.status(500).json({ error: "Session error" });
+        res.clearCookie("connect.sid");
+        res.json({ message: "Logged out" });
+    });
+});
+
 module.exports = router;
 
