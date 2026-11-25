@@ -1,0 +1,2 @@
+# Shell scripts run in Linux containers and in WSL: keep Unix line endings even on Windows
+*.sh text eol=lf
