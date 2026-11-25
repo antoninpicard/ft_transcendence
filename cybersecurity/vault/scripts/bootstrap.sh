@@ -4,9 +4,13 @@ set -euo pipefail
 INIT_FILE="${VAULT_INIT_FILE:-$HOME/vault-init.json}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# No secret is ever passed as a command argument (arguments are visible to every user
+# in "ps", on the host and in the container):
+# - "-e VAULT_TOKEN" without a value makes docker compose copy it from this environment;
+# - unseal keys and secret values are sent on stdin.
 vault_cmd() {
   docker compose exec -T -e VAULT_ADDR=http://127.0.0.1:8200 \
-    ${VAULT_TOKEN:+-e VAULT_TOKEN="$VAULT_TOKEN"} vault vault "$@"
+    ${VAULT_TOKEN:+-e VAULT_TOKEN} vault vault "$@"
 }
 
 # "vault status" exits with 2 when sealed: neutralize it so pipefail/set -e do not trigger
@@ -32,8 +36,9 @@ fi
 status="$(vault_status)"
 if grep -q '"sealed": true' <<<"$status"; then
   for i in 0 1; do
-    key="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["unseal_keys_b64"][int(sys.argv[2])])' "$INIT_FILE" "$i")"
-    vault_cmd operator unseal "$key" >/dev/null
+    # The key goes from the init file to Vault through a pipe: "key=-" reads it on stdin
+    python3 -c 'import json,sys; sys.stdout.write(json.load(open(sys.argv[1]))["unseal_keys_b64"][int(sys.argv[2])])' "$INIT_FILE" "$i" \
+      | vault_cmd write sys/unseal key=- >/dev/null
   done
 fi
 
@@ -69,14 +74,22 @@ done
 for f in "$SCRIPT_DIR"/../secrets/*.env; do
   [ -e "$f" ] || continue
   svc="$(basename "$f" .env)"
-  args=()
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in ''|\#*) continue ;; esac
-    args+=("$line")
-  done < "$f"
-  if [ "${#args[@]}" -gt 0 ]; then
-    vault_cmd kv put -mount=secret "$svc/app" "${args[@]}" >/dev/null
+  # KEY=value lines (empty lines and # comments skipped) -> one JSON object on stdin ("-")
+  json="$(python3 -c '
+import json, sys
+data = {}
+for line in open(sys.argv[1], encoding="utf-8"):
+    line = line.rstrip("\r\n")
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    data[key] = value
+sys.stdout.write(json.dumps(data) if data else "")
+' "$f")"
+  if [ -n "$json" ]; then
+    printf '%s' "$json" | vault_cmd kv put -mount=secret "$svc/app" - >/dev/null
   fi
+  unset json
 done
 
 unset VAULT_TOKEN
