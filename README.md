@@ -105,3 +105,6 @@ Le Dockerfile installe les dépendances frontend, compile Vue, puis l'image de p
 - WebSocket sur `/socket`
 
 Les anciennes pages HTML peuvent rester dans `frontend/public/` pendant la transition ; Express ne les sert plus directement une fois la version Vue compilée.
+
+
+//TODO cagnotte joueur a droite
