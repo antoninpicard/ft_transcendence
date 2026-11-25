@@ -1,5 +1,5 @@
-import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
+import { currentUser } from "./session.js";
 import LoginView from "./views/LoginView.vue";
 import TwoFactorView from "./views/TwoFactorView.vue";
 import SignupView from "./views/SignupView.vue";
@@ -8,8 +8,6 @@ import SettingsView from "./views/SettingsView.vue";
 import GameView from "./views/GameView.vue";
 import PrivacyView from "./views/PrivacyView.vue";
 import TermsView from "./views/TermsView.vue";
-
-export const currentUser = ref(null);
 
 const routes = [
 	{ path: "/", redirect: "/login" },

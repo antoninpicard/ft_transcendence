@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter } from "vue-router";
-import { currentUser } from "./router.js";
+import { currentUser } from "./session.js";
 import { request } from "./api.js";
 
 const router = useRouter();

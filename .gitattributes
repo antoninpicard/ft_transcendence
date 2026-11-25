@@ -1,2 +1,7 @@
 # Shell scripts run in Linux containers and in WSL: keep Unix line endings even on Windows
 *.sh text eol=lf
+# Files read by make, Docker, nginx/ModSecurity and Vault inside Linux: same rule
+Makefile text eol=lf
+*Dockerfile text eol=lf
+*.conf text eol=lf
+*.hcl text eol=lf
