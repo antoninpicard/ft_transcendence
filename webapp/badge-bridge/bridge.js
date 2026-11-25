@@ -64,9 +64,32 @@ function handleSerialError(error)
 	process.exit(1);
 }
 
-// Open the serial port of the ESP32 and forward every scanned badge to the API
-function startBridge()
+// Say hello to the API with the device token, and stop if the address or the token is wrong
+async function checkApi()
 {
+	try
+	{
+		const response = await fetch(API_URL + "/api/hello", {
+			method: "POST",
+			headers: { "X-Device-Token": DEVICE_TOKEN }
+		});
+		if (!response.ok)
+		{
+			console.error("API refused the bridge (" + response.status + "): check API_URL and DEVICE_TOKEN");
+			process.exit(1);
+		}
+	}
+	catch (error)
+	{
+		console.error("API unreachable at " + API_URL + ": " + error.message);
+		process.exit(1);
+	}
+}
+
+// Check the API, then open the serial port of the ESP32 and forward every scanned badge to the API
+async function startBridge()
+{
+	await checkApi();
 	const port = new SerialPort({ path: SERIAL_PORT, baudRate: BAUD_RATE });
 	const parser = port.pipe(new ReadlineParser({ delimiter: "\n" }));
 	port.on("error", handleSerialError);
