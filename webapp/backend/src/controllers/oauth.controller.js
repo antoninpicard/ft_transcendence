@@ -8,7 +8,7 @@ import {
 import { AppError } from '../utils/AppError.js';
 import { buildAuthorizeUrl, exchangeCode, fetchProfile } from '../services/fortytwo.client.js';
 import { findOrCreateFortyTwoUser } from '../services/oauth.service.js';
-import { openSession } from './openSession.js';
+import { openSessionOrAskCode } from './openSessionOrAskCode.js';
 
 function sha256(value) {
   return createHash('sha256').update(value).digest();
@@ -56,7 +56,7 @@ export async function callback(req, res) {
       email: profile.email,
       login: profile.login,
     });
-    await openSession(res, user.id);
+    if (await openSessionOrAskCode(res, user.id)) return res.redirect(`${env.FRONT_URL}/login/2fa`);
     res.redirect(`${env.FRONT_URL}/home`);
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 409) return failure(res, 'oauth_email_taken');

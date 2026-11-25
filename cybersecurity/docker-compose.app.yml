@@ -1,0 +1,84 @@
+services:
+  app:
+    ports: !reset []
+    # The app gets its secrets from Vault only, never from contbuild/.env
+    env_file: !reset []
+    command: ["node", "/vault/vault-exec.js", "npm", "start"]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_SECRET_PATH: secret/data/app/app
+    volumes:
+      - ./vault/wrapper/vault-exec.js:/vault/vault-exec.js:ro
+      - ./vault/run/app:/run/vault:ro
+    networks:
+      - default
+      - vault-net
+
+  nginx:
+    # In the integrated stack, the WAF protects the real app (not the whoami test backend)
+    environment:
+      BACKEND: http://app:3000
+    volumes:
+      # Adds the /api and /ws routes to the API (see the file)
+      - ./waf/nginx/location_common.conf.template:/etc/nginx/templates/includes/location_common.conf.template:ro
+    depends_on:
+      - app
+
+  api:
+    # Not published: in the integrated stack the API is only reachable through the WAF
+    # (/api, /ws). Lucas's own setup (contbuild/docker-compose.yml alone) is unchanged.
+    ports: !reset []
+    # Paths are relative to cybersecurity/ (directory of the first Compose file)
+    env_file: !override
+      - path: ../contbuild/.env
+        required: false
+    # vault-exec.js logs in with the backend AppRole, reads secret/backend/app and
+    # secret/db/app and adds them to the environment (Vault values win over contbuild/.env).
+    # api-start.sh then builds DATABASE_URL and runs the commands of contbuild/api.Dockerfile.
+    command: ["node", "/vault/vault-exec.js", "sh", "/vault/api-start.sh"]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_SECRET_PATH: secret/data/backend/app,secret/data/db/app
+      # These secrets come from Vault only: emptied here so that a value written in
+      # contbuild/.env never reaches the container (docker inspect); vault-exec.js then
+      # sets them from Vault. DATABASE_URL (with the password) is built at startup.
+      DEVICE_TOKEN: ""
+      BADGE_UID_SECRET: ""
+      FORTYTWO_CLIENT_SECRET: ""
+      POSTGRES_PASSWORD: ""
+      DATABASE_URL: ""
+    volumes:
+      - ./vault/wrapper/vault-exec.js:/vault/vault-exec.js:ro
+      - ./vault/wrapper/api-start.sh:/vault/api-start.sh:ro
+      - ./vault/run/backend:/run/vault:ro
+    networks:
+      - default
+      - vault-net
+
+  db:
+    # Not published: only the API reaches the database, on the internal Compose network.
+    # "npm run db:up" (contbuild/docker-compose.yml alone) still publishes 127.0.0.1:5432.
+    ports: !reset []
+    # The password comes from Vault (secret/db/app, db AppRole): vault-exec.sh exports it,
+    # then runs the normal entrypoint of the Postgres image
+    entrypoint: ["/bin/sh", "/vault/vault-exec.sh"]
+    command: ["docker-entrypoint.sh", "postgres"]
+    environment:
+      POSTGRES_PASSWORD: ""
+      VAULT_ADDR: http://vault:8200
+      VAULT_SECRET_PATH: secret/data/db/app
+      VAULT_SECRET_KEYS: POSTGRES_PASSWORD
+    volumes:
+      - ./vault/wrapper/vault-exec.sh:/vault/vault-exec.sh:ro
+      - ./vault/run/db:/run/vault:ro
+    networks:
+      - default
+      - vault-net
+
+networks:
+  # Fixed subnet: a browser on the host is always seen by the API as 172.30.0.1 (the
+  # gateway), so BADGE_LOGIN_ALLOWED_IPS works the same way on every machine
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

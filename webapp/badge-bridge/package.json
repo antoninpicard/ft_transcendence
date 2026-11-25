@@ -1,0 +1,17 @@
+{
+  "name": "ft_transcendence-badge-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads badge UIDs from the ESP32 over USB and sends them to the API",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env bridge.js"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "serialport": "^13.0.0"
+  }
+}

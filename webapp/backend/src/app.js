@@ -48,6 +48,9 @@ export function createApp({ rateLimit = env.NODE_ENV !== 'test' } = {}) {
     app.post('/api/auth/login', limiter({ windowMs: 60_000, limit: 10, keyGenerator: loginKey }));
     app.post('/api/auth/register', limiter({ windowMs: 60_000, limit: 5 }));
     app.post('/api/badge/login', limiter({ windowMs: 10_000, limit: 1 }));
+    app.post('/api/auth/2fa/verify', limiter({ windowMs: 60_000, limit: 10 }));
+    app.post('/api/auth/2fa/enable', limiter({ windowMs: 60_000, limit: 10 }));
+    app.post('/api/auth/2fa/disable', limiter({ windowMs: 60_000, limit: 10 }));
     app.post(
       '/api/messages/:userId',
       limiter({

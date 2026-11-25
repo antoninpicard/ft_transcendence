@@ -1,0 +1,25 @@
+{
+  "name": "ft_transcendence-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^4.2.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.10",
+    "qrcode": "^1.5.4",
+    "vite": "^8.3.6",
+    "vue": "^3.5.45",
+    "vue-router": "^5.4.0"
+  }
+}
