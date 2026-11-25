@@ -1,0 +1,505 @@
+### Health — 200 if the database answers, 503 otherwise
+GET {{host}}/api/health
+
+### Register — 201, opens a session, stores the id and cookie for the requests below
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "lucas@42.fr",
+  "password": "SecurePass123"
+}
+
+> {%
+    client.test("registered", function () {
+        client.assert(response.status === 201, "expected 201, got " + response.status);
+    });
+    if (response.status === 201) {
+        client.global.set("userId", response.body.id);
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Login — 200, opens a fresh session, refreshes the stored cookie
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "lucas",
+  "password": "SecurePass123"
+}
+
+> {%
+    client.test("logged in", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+    if (response.status === 200) {
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Current session — the authenticated user, email included
+GET {{host}}/api/auth/me
+Cookie: {{sessionCookie}}
+
+### Public directory — paginated, no email
+GET {{host}}/api/users?limit=20&offset=0
+
+### Get one user — public projection, no email
+GET {{host}}/api/users/{{userId}}
+
+### Owner update — only the account owner may PATCH
+PATCH {{host}}/api/users/{{userId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "email": "lucas.updated@42.fr"
+}
+
+> {%
+    client.test("updated", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### 403 — PATCH targeting someone else's id, even though the session is valid
+PATCH {{host}}/api/users/00000000-0000-4000-8000-000000000000
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "username": "pirate"
+}
+
+> {%
+    client.test("forbidden", function () {
+        client.assert(response.status === 403, "expected 403, got " + response.status);
+    });
+%}
+
+### Logout — 204, no body, revokes the session above
+POST {{host}}/api/auth/logout
+Cookie: {{sessionCookie}}
+
+> {%
+    client.test("logged out", function () {
+        client.assert(response.status === 204, "expected 204, got " + response.status);
+    });
+%}
+
+### Login again — 200, the logout above revoked the session; the sections below need a fresh one
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "lucas",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 200) {
+        client.global.set("sessionCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+###############################################################################
+# 42 OAuth — answers 302 to the 42 authorize page, or 503 when not configured
+###############################################################################
+
+### Start the 42 login — sets the oauth_state cookie, answers 302 to 42 (redirect not followed; complete the flow from a browser)
+# @no-redirect
+GET {{host}}/api/auth/42
+
+> {%
+    client.test("redirected to 42 or not configured", function () {
+        client.assert(response.status === 302 || response.status === 503, "expected 302 or 503, got " + response.status);
+    });
+%}
+
+
+###############################################################################
+# Device (ESP32) — needs {{deviceToken}} in http-client.private.env.json
+###############################################################################
+
+### Hello — 200, the device announces itself
+POST {{host}}/api/hello
+X-Device-Token: {{deviceToken}}
+
+> {%
+    client.test("hello", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### Scan — 200 whatever the business outcome (nothing in progress, paired, unknown badge...)
+POST {{host}}/api/scan
+Content-Type: application/json
+X-Device-Token: {{deviceToken}}
+
+{
+  "uid": "04A1B2C3D4E5F6"
+}
+
+> {%
+    client.test("scan answered", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+
+###############################################################################
+# Badge (browser) — pairing and login results arrive on ws://<host>/ws
+###############################################################################
+
+# Only one badge action exists at a time: a login window answers 409 while a pairing
+# is open, and a pairing answers 409 while another pairing is open. Scanning a
+# badge or waiting 30 s frees the reader. A pairing does replace a pending login window.
+# Badge login (start and confirm) is accepted only from BADGE_LOGIN_ALLOWED_IPS: set it to
+# 127.0.0.1,::1 in .env to run these two requests locally (403 otherwise, 503 when unset).
+
+### Start a badge login — 200 { code }, kiosk address only, limited to 1 per 10 s (429 beyond); 409 while another action is open
+POST {{host}}/api/badge/login
+
+> {%
+    client.test("login window opened", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### Start a pairing — 200 { code }, needs the session; replaces a pending login window; open /ws, send { "code": ... }, then scan within 30 s
+POST {{host}}/api/badge/pairing
+Cookie: {{sessionCookie}}
+
+> {%
+    client.test("pairing started", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### Badge status — { linked: true | false }
+GET {{host}}/api/badge
+Cookie: {{sessionCookie}}
+
+> {%
+    client.test("status", function () {
+        client.assert(response.status === 200, "expected 200, got " + response.status);
+    });
+%}
+
+### Confirm a badge login — 200 and a session cookie; paste the token received on /ws
+POST {{host}}/api/badge/login/confirm
+Content-Type: application/json
+
+{
+  "token": "paste-the-token-from-the-websocket"
+}
+
+### Unlink the badge — 204
+DELETE {{host}}/api/badge
+Cookie: {{sessionCookie}}
+
+> {%
+    client.test("unlinked", function () {
+        client.assert(response.status === 204, "expected 204, got " + response.status);
+    });
+%}
+
+
+###############################################################################
+# API keys — managed from the session; a key is shown once, then usable with Authorization: Bearer
+###############################################################################
+
+# The key is stored in the {{apiKey}} global by the creation request. To reuse a key across
+# sessions, define apiKey in http-client.private.env.json (git-ignored). Never commit a real key.
+# The key is revoked by the last request of this file, after the error requests that still need it.
+
+### Create a key — 201 { id, name, prefix, createdAt, lastUsedAt, key }, session only, key shown once
+POST {{host}}/api/keys
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "name": "http client"
+}
+
+> {%
+    client.test("key created", function () {
+        client.assert(response.status === 201, "expected 201, got " + response.status);
+    });
+    if (response.status === 201) {
+        client.global.set("apiKey", response.body.key);
+        client.global.set("apiKeyId", response.body.id);
+    }
+%}
+
+### List keys — 200 { items }, prefix only, never the key
+GET {{host}}/api/keys
+Cookie: {{sessionCookie}}
+
+### Current user with the key — 200, same as the session
+GET {{host}}/api/auth/me
+Authorization: Bearer {{apiKey}}
+
+### Replace the profile with the key — 200, username and email both required, owner only
+PUT {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "lucas@42.fr"
+}
+
+###############################################################################
+# Friends and messages — needs a second account; the first one is the stored session
+###############################################################################
+
+### Second account — 201, stores its id and cookie (409 if it already exists: log in instead)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "marie",
+  "email": "marie@42.fr",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 201) {
+        client.global.set("friendId", response.body.id);
+        client.global.set("friendCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Second account login — 200, stores its id and cookie (use this when the register above answered 409)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "marie",
+  "password": "SecurePass123"
+}
+
+> {%
+    if (response.status === 200) {
+        client.global.set("friendId", response.body.id);
+        client.global.set("friendCookie", response.headers.valueOf("Set-Cookie").split(";")[0]);
+    }
+%}
+
+### Send a friend request — 201 { status: "pending", user }; 200 "accepted" if they had already asked
+POST {{host}}/api/friends/requests
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "userId": "{{friendId}}"
+}
+
+### My requests — { incoming, outgoing }
+GET {{host}}/api/friends/requests
+Cookie: {{sessionCookie}}
+
+### Their requests — the request shows up in incoming
+GET {{host}}/api/friends/requests
+Cookie: {{friendCookie}}
+
+### Profile with the relation — "request-sent" for me, "request-received" for them
+GET {{host}}/api/users/{{friendId}}
+Cookie: {{sessionCookie}}
+
+### Accept the request as the other account — 200 { status: "accepted", user }
+POST {{host}}/api/friends/requests/{{userId}}/accept
+Cookie: {{friendCookie}}
+
+### My friends — { items: [{ user, since }] }
+GET {{host}}/api/friends
+Cookie: {{sessionCookie}}
+
+### Send a message — 201, friends only (403 otherwise), 30 per minute per user
+POST {{host}}/api/messages/{{friendId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "body": "Salut !"
+}
+
+> {%
+    if (response.status === 201) {
+        client.global.set("messageId", response.body.id);
+    }
+%}
+
+### My conversations — { items: [{ user, lastMessage }] }, newest first
+GET {{host}}/api/messages
+Cookie: {{friendCookie}}
+
+### Read a conversation — oldest first, the 50 latest by default
+GET {{host}}/api/messages/{{userId}}?limit=50
+Cookie: {{friendCookie}}
+
+### Poll for new messages — only those after the cursor (the stored message id)
+GET {{host}}/api/messages/{{friendId}}?after={{messageId}}
+Cookie: {{sessionCookie}}
+
+### Older history — the messages before the cursor
+GET {{host}}/api/messages/{{friendId}}?before={{messageId}}
+Cookie: {{sessionCookie}}
+
+### Remove the friend — 204; history stays readable, sending is refused afterwards
+DELETE {{host}}/api/friends/{{friendId}}
+Cookie: {{sessionCookie}}
+
+###############################################################################
+# Error paths — every one of these must fail in the documented way
+###############################################################################
+
+### 404 — unknown route
+GET {{host}}/api/nope
+
+### 405 — POST /users is not a route; accounts are only created through /auth/register
+POST {{host}}/api/users
+
+### 400 — username too short, invalid email, password too short
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "ab",
+  "email": "not-an-email",
+  "password": "short"
+}
+
+### 400 — id is not a uuid
+GET {{host}}/api/users/123
+
+### 400 — limit above the allowed maximum
+GET {{host}}/api/users?limit=999
+
+### 400 — malformed JSON (must NOT be a 500)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{oops
+
+### 401 — wrong password
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "lucas",
+  "password": "wrong-password"
+}
+
+### 401 — me without a session cookie
+GET {{host}}/api/auth/me
+
+### 401 — PATCH without a session cookie
+PATCH {{host}}/api/users/{{userId}}
+Content-Type: application/json
+
+{
+  "username": "anonymous-edit"
+}
+
+### 409 — username already taken (run the register request above twice)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "lucas",
+  "email": "someone.else@42.fr",
+  "password": "SecurePass123"
+}
+
+
+### 401 — scan without the device token
+POST {{host}}/api/scan
+Content-Type: application/json
+
+{
+  "uid": "04A1B2C3D4E5F6"
+}
+
+### 400 — scan with a malformed uid
+POST {{host}}/api/scan
+Content-Type: application/json
+X-Device-Token: {{deviceToken}}
+
+{
+  "uid": "not-hex"
+}
+
+### 401 — badge status without a session cookie
+GET {{host}}/api/badge
+
+### 401 — confirm a badge login with an unknown token
+POST {{host}}/api/badge/login/confirm
+Content-Type: application/json
+
+{
+  "token": "unknown"
+}
+
+### 403 — badge login from an address outside BADGE_LOGIN_ALLOWED_IPS (simulated through the proxy header)
+POST {{host}}/api/badge/login
+X-Forwarded-For: 203.0.113.9
+
+> {%
+    client.test("not the kiosk", function () {
+        client.assert(response.status === 403, "expected 403, got " + response.status);
+    });
+%}
+
+### 401 — invalid API key, on any route
+GET {{host}}/api/users
+Authorization: Bearer trk_invalid
+
+### 401 — wrong scheme (the scheme is case-sensitive: Bearer)
+GET {{host}}/api/auth/me
+Authorization: bearer {{apiKey}}
+
+### 403 — a key cannot manage keys (create a key first)
+GET {{host}}/api/keys
+Authorization: Bearer {{apiKey}}
+
+### 403 — a key cannot delete the account
+DELETE {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+
+### 400 — PUT without email
+PUT {{host}}/api/users/{{userId}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "username": "lucas"
+}
+
+### 400 — friend request to myself
+POST {{host}}/api/friends/requests
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "userId": "{{userId}}"
+}
+
+### 403 — message to someone who is not a friend (remove the friend first)
+POST {{host}}/api/messages/{{friendId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "body": "Toujours là ?"
+}
+
+### 401 — friends without credentials
+GET {{host}}/api/friends
+
+### Revoke the key (run last) — 204, effective immediately (the key then gets 401)
+DELETE {{host}}/api/keys/{{apiKeyId}}
+Cookie: {{sessionCookie}}
