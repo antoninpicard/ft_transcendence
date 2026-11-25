@@ -82,9 +82,9 @@ describe('couche HTTP', () => {
   });
 
   it('répond 405 avec un en-tête Allow sur une méthode non gérée', async () => {
-    const res = await fetch(`${base}/api/users/${SOME_UUID}`, { method: 'PUT' });
+    const res = await fetch(`${base}/api/users/${SOME_UUID}`, { method: 'POST' });
     assert.equal(res.status, 405);
-    assert.equal(res.headers.get('allow'), 'GET, PATCH, DELETE');
+    assert.equal(res.headers.get('allow'), 'GET, PUT, PATCH, DELETE');
   });
 
   it("n'annonce jamais credentials quand l'origine est '*'", async () => {

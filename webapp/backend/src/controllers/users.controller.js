@@ -1,4 +1,5 @@
 import * as usersService from '../services/users.service.js';
+import { getRelation } from '../services/friends.service.js';
 
 export async function list(req, res) {
   const { limit, offset } = req.validatedQuery;
@@ -6,7 +7,9 @@ export async function list(req, res) {
 }
 
 export async function getOne(req, res) {
-  res.json(await usersService.getPublicUser(req.params.id));
+  const user = await usersService.getPublicUser(req.params.id);
+  if (!req.user) return res.json(user);
+  return res.json({ ...user, relation: await getRelation(req.user.id, user.id) });
 }
 
 export async function update(req, res) {
