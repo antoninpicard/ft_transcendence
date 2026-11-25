@@ -256,56 +256,29 @@ a:hover {
 
 .home {
 	width: min(100%, 900px);
-	margin: 30px auto;
-}
-
-.home .home-hero {
-	width: 100%;
-	margin: 0 0 24px;
-	text-align: center;
+	margin: 20px auto;
 }
 
 .home-kicker {
-	margin: 0 0 8px;
+	margin: 0;
 	color: var(--caramel);
 	font-size: 0.85rem;
 	font-weight: 700;
 	letter-spacing: 0.3em;
+	text-align: center;
 }
 
-.dealer-line {
-	max-width: 520px;
-	margin: 18px auto 6px;
-	padding: 14px 18px;
-	border: 1px dashed var(--line);
-	border-radius: 12px;
-	background: #fff9ed;
-	font-style: italic;
-}
-
-.dealer-line p {
-	margin: 0;
-	color: var(--chocolate);
-	font-size: 1.1rem;
-}
-
-.dealer-line footer {
-	margin-top: 4px;
-	color: var(--chocolate-soft);
-	font-size: 0.85rem;
-	font-style: normal;
-}
-
-.home-cards {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-	gap: 20px;
+.home-title {
+	margin: 6px 0 22px;
+	font-size: clamp(1.8rem, 5vw, 2.6rem);
+	text-align: center;
 }
 
 .home-card {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	margin: 0;
 	padding: 22px;
 	border: 1px solid var(--line);
 	border-radius: 18px;
@@ -317,14 +290,10 @@ a:hover {
 	transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
-.home-card:hover {
+a.home-card:hover {
 	transform: translateY(-4px) rotate(-0.6deg);
 	box-shadow: 0 16px 34px rgba(75, 45, 32, 0.14);
 	color: var(--chocolate);
-}
-
-.home-card-play {
-	background: linear-gradient(160deg, #fffdf7, #f8ebd5);
 }
 
 .home-card h2 {
@@ -337,12 +306,74 @@ a:hover {
 	color: var(--chocolate-soft);
 }
 
-.home-card-icon {
-	font-size: 2.4rem;
+.home-card .action-link {
+	align-self: flex-start;
+	margin-top: auto;
+}
+
+.home-card-play {
+	flex-direction: row;
+	align-items: center;
+	gap: 24px;
+	margin-bottom: 20px;
+	padding: clamp(24px, 5vw, 40px);
+	border: 2px solid var(--cookie);
+	background: linear-gradient(150deg, #fffdf7, #f4dcb4);
+}
+
+.home-card-play .home-card-icon {
+	font-size: clamp(4rem, 12vw, 6.5rem);
 	line-height: 1;
 }
 
-.home-card .action-link {
+.home-play-text {
+	display: grid;
+	flex: 1;
+	gap: 8px;
+}
+
+.home-card-play h2 {
+	color: var(--chocolate);
+	font-size: clamp(1.6rem, 4vw, 2.3rem);
+}
+
+.home-card-play p {
+	font-size: 1.05rem;
+}
+
+.home-card-play .home-play-button {
+	align-self: center;
+	margin-top: 0;
+	padding: 14px 24px;
+	font-size: 1.1rem;
+	white-space: nowrap;
+}
+
+.home-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 20px;
+}
+
+.home-quote-label {
+	font-size: 0.85rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+}
+
+.home-quote blockquote {
+	margin: 0;
+	color: var(--chocolate);
+	font-size: 1.1rem;
+	font-style: italic;
+}
+
+.home-quote figcaption {
+	color: var(--caramel);
+	font-weight: 700;
+}
+
+.home-quote button {
 	align-self: flex-start;
 	margin-top: auto;
 }
@@ -368,6 +399,18 @@ a:hover {
 
 .status-list .status-off {
 	color: var(--danger);
+}
+
+@media (max-width: 620px) {
+	.home-card-play {
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.home-card-play .home-play-button {
+		width: 100%;
+		text-align: center;
+	}
 }
 
 @media (max-width: 620px) {

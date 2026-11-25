@@ -1,28 +1,28 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { currentUser } from "../router.js";
+import { currentUser } from "../session.js";
 import { request } from "../api.js";
 
-const DEALER_LINES = [
-	"La chance sourit aux audacieux… et aux gourmands.",
-	"Ce soir, la maison offre les cookies. Pas les gains.",
-	"Gratte doucement, le jackpot est timide.",
-	"Ici, on mise des points, jamais de vrais euros.",
-	"Le croupier a un bon pressentiment pour toi.",
-	"Un ticket par jour éloigne la routine."
+const QUOTES = [
+	{ text: "Un badge, un code, un ticket : rien ne peut t'arrêter.", author: "anpicard" },
+	{ text: "Badge le matin, jackpot le soir.", author: "anpicard" },
+	{ text: "Chaque ticket gratté est un pas de plus vers le jackpot.", author: "tmarion" },
+	{ text: "Gratte avec le cœur, gagne avec le sourire.", author: "tmarion" },
+	{ text: "Séquence ratée ? Recommence : c'est comme ça qu'on devient bon.", author: "fdeleard" },
+	{ text: "La patience est la meilleure des mises.", author: "fdeleard" }
 ];
 
-const dealerLine = ref("");
+const quote = ref(QUOTES[0]);
 const twoFactorOn = ref(null);
 const badgeLinked = ref(null);
 
-// Pick a random sentence of the dealer, different from the one already shown
-function newDealerLine()
+// Pick a random motivation quote, different from the one already shown
+function newQuote()
 {
-	let line = dealerLine.value;
-	while (line === dealerLine.value)
-		line = DEALER_LINES[Math.floor(Math.random() * DEALER_LINES.length)];
-	dealerLine.value = line;
+	let next = quote.value;
+	while (next === quote.value)
+		next = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+	quote.value = next;
 }
 
 // Ask the API whether the account has 2FA on and a badge linked, for the security card
@@ -54,10 +54,10 @@ function statusClass(value)
 	return "status-off";
 }
 
-// On arrival: a first sentence of the dealer and the security status of the account
+// On arrival: a first motivation quote and the security status of the account
 function init()
 {
-	newDealerLine();
+	newQuote();
 	loadSecurity();
 }
 
@@ -66,27 +66,28 @@ onMounted(init);
 
 <template>
 	<section class="home">
-		<div class="content-panel home-hero">
-			<p class="home-kicker" aria-hidden="true">♠ ♥ CLB PRIVATE CLUB ♦ ♣</p>
-			<h1>Bienvenue, {{ currentUser?.username }} 🍪</h1>
-			<blockquote class="dealer-line">
-				<p>« {{ dealerLine }} »</p>
-				<footer>— le croupier</footer>
-			</blockquote>
-			<button type="button" class="secondary-button dealer-button" @click="newDealerLine">🎲 Une autre réplique</button>
-		</div>
+		<p class="home-kicker" aria-hidden="true">♠ ♥ CLB PRIVATE CLUB ♦ ♣</p>
+		<h1 class="home-title">Bienvenue, {{ currentUser?.username }} 🍪</h1>
 
-		<div class="home-cards">
-			<RouterLink class="home-card home-card-play" to="/game">
-				<span class="home-card-icon" aria-hidden="true">🎟</span>
+		<RouterLink class="home-card home-card-play" to="/game">
+			<span class="home-card-icon" aria-hidden="true">🎟</span>
+			<div class="home-play-text">
 				<h2>Tickets à gratter</h2>
 				<p>Étoile Filante, Diamant Rouge ou Royale : tape la bonne séquence de touches et découvre ton gain.</p>
-				<span class="action-link">Jouer</span>
-			</RouterLink>
+			</div>
+			<span class="action-link home-play-button">Jouer maintenant</span>
+		</RouterLink>
+
+		<div class="home-row">
+			<figure class="home-card home-quote">
+				<p class="home-quote-label">💬 Phrase de motivation</p>
+				<blockquote>« {{ quote.text }} »</blockquote>
+				<figcaption>— {{ quote.author }}</figcaption>
+				<button type="button" class="secondary-button" @click="newQuote">🎲 Une autre</button>
+			</figure>
 
 			<RouterLink class="home-card" to="/settings">
-				<span class="home-card-icon" aria-hidden="true">🛡️</span>
-				<h2>Ta sécurité</h2>
+				<h2>🛡️ Ta sécurité</h2>
 				<ul class="status-list">
 					<li :class="statusClass(twoFactorOn)">Double authentification : {{ statusText(twoFactorOn, "activée", "désactivée") }}</li>
 					<li :class="statusClass(badgeLinked)">Badge NFC : {{ statusText(badgeLinked, "lié", "non lié") }}</li>
