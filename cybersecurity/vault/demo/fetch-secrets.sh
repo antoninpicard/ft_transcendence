@@ -20,7 +20,7 @@ echo "login OK (token length: ${#TOKEN})"
 DATA="$(wget -qO- --header "X-Vault-Token: $TOKEN" "$VAULT/v1/${1:-secret/data/backend/app}")"
 
 # 3. Prove we got them without printing the values
-for k in DB_PASSWORD JWT_SECRET; do
+for k in DEVICE_TOKEN BADGE_UID_SECRET FORTYTWO_CLIENT_SECRET; do
   v="$(printf '%s' "$DATA" | sed -n "s/.*\"$k\":\"\([^\"]*\)\".*/\1/p")"
   echo "$k loaded (length: ${#v})"
 done
