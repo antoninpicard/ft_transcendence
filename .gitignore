@@ -3,7 +3,14 @@ firmware/secrets.h
 # Node / API
 node_modules/
 .env
+**/.env
 *.log
+
+# Cybersecurity: TLS key/cert, Vault secrets and AppRole credentials
+cybersecurity/waf/certs/*.key
+cybersecurity/waf/certs/*.crt
+cybersecurity/vault/secrets/*.env
+cybersecurity/vault/run/
 
 # IDE / OS
 .idea/
@@ -15,3 +22,6 @@ http-client.private.env.json
 
 # Vue front build output
 webapp/frontend/dist/
+
+# 42 subject (not part of the project)
+en.subject.pdf
