@@ -42,20 +42,25 @@ newgrp docker
 
 ### First run
 
-1. **Configuration files.** Copy the two example files and fill in real values.
-   Both are ignored by Git, and `make` stops with a message if one is missing.
+1. **Configuration files.** Copy the three example files and fill in real values.
+   They are ignored by Git, and `make` stops with a message if one is missing.
 
    ```sh
    cp contbuild/.env.example contbuild/.env
    # edit contbuild/.env: POSTGRES_*, CORS_ORIGIN (https://localhost:8443), ...
    cp cybersecurity/vault/secrets/app.env.example cybersecurity/vault/secrets/app.env
    # edit cybersecurity/vault/secrets/app.env: SESSION_SECRET, DEVICE_TOKEN
+   cp cybersecurity/vault/secrets/backend.env.example cybersecurity/vault/secrets/backend.env
+   # edit cybersecurity/vault/secrets/backend.env: DEVICE_TOKEN, BADGE_UID_SECRET, FORTYTWO_CLIENT_SECRET
    ```
 
-   - `contbuild/.env` is read by Compose (database credentials) and by the `api` and
-     `db` services. The `app` service does not read it.
-   - `cybersecurity/vault/secrets/app.env` is only read by the bootstrap script, which
-     loads it into Vault: the app gets `SESSION_SECRET` and `DEVICE_TOKEN` from Vault.
+   - `contbuild/.env` holds the configuration: it is read by Compose (database
+     credentials) and by the `api` and `db` services. The `app` service does not read
+     it, and the API ignores the secrets written there (`DEVICE_TOKEN`,
+     `BADGE_UID_SECRET`, `FORTYTWO_CLIENT_SECRET`): leave them empty.
+   - `cybersecurity/vault/secrets/*.env` are only read by the bootstrap script, which
+     loads them into Vault. The app and the API get their secrets from Vault.
+     `DEVICE_TOKEN` must be the same in `app.env` and `backend.env`.
 
 2. **TLS certificate:** nothing to do. If `cybersecurity/waf/certs/server.crt` is
    missing, `make` creates a self-signed certificate for `localhost` with `openssl`
@@ -178,9 +183,15 @@ in the image, in the Compose files or in Git.
 **Architecture:**
 
 ```
-browser --HTTPS:8443--> nginx + ModSecurity (WAF) --HTTP--> app:3000 --HTTP--> vault:8200
-                         (only published port)           (default net)   (internal vault-net)
+                                                     /api/..., /ws
+browser --HTTPS:8443--> nginx + ModSecurity (WAF) ----------------> api:3000 --> db:5432
+                                                 \                     \
+                                                  \ everything else     \ (vault-net)
+                                                   `--------> app:3000 --+--> vault:8200
 ```
+
+The WAF port (8443) is the only one published on all interfaces. The app and Vault
+are not published; the API and the database are published on `127.0.0.1` only.
 
 **WAF (`cybersecurity/docker-compose.yml`, `cybersecurity/waf/`):**
 
@@ -191,6 +202,9 @@ browser --HTTPS:8443--> nginx + ModSecurity (WAF) --HTTP--> app:3000 --HTTP--> v
   refused (CRS rule 911100). `TRACE` is refused by nginx itself (405).
 - Local rule `10001` (`waf/rules/before-crs.conf`): blocks `/.env` and `/.git`
   paths, case-insensitive.
+- Routing (`waf/nginx/location_common.conf.template`, integrated stack only):
+  `/api/...` and the `/ws` WebSocket go to the API, everything else to the app.
+  ModSecurity is enabled for the whole server, so both are filtered.
 - TLS 1.2 and 1.3 only; plain HTTP is not published.
 - Audit log in JSON on stdout, `MODSEC_AUDIT_LOG_PARTS=ABJDFHZ`: no request or
   response body in the logs, but the triggered rules are kept.
@@ -206,10 +220,12 @@ browser --HTTPS:8443--> nginx + ModSecurity (WAF) --HTTP--> app:3000 --HTTP--> v
 - `scripts/bootstrap.sh` is idempotent: it initializes Vault only once, unseals it,
   enables KV v2 and AppRole, writes the policies and roles, and loads
   `secrets/<service>.env` into `secret/<service>/app`.
-- The app starts through `wrapper/vault-exec.js`: it logs in with its AppRole
-  credentials (mounted read-only from `vault/run/app/`), reads its secrets and starts
-  `npm start` with them in its environment. The values never appear in
-  `docker inspect` or in the image.
+- The app and the API start through `wrapper/vault-exec.js`: it logs in with the
+  service's AppRole credentials (mounted read-only from `vault/run/app/` or
+  `vault/run/backend/`), reads its secrets (`secret/app/app` or `secret/backend/app`)
+  and starts the real command with them in its environment. The values never appear
+  in `docker inspect` or in the image. For the API, the secret keys are also emptied
+  in the Compose file, so a value left in `contbuild/.env` never reaches the container.
 
 **Tests:** `waf/tests/waf-test.sh` (WAF alone, with the `whoami` test backend) and
 `waf/tests/waf-app-test.sh` (integrated app): legitimate traffic must pass, SQL
@@ -227,9 +243,11 @@ WAF cannot resolve Vault, which has no Internet access. It prints status codes o
   "select ... from", "--", "1 OR 2") and on passwords with many symbols. Targeted
   exclusions are still to be written for the real fields.
 - The certificate is self-signed (development only).
-- The API (`webapp/backend`) is not behind the WAF yet (published on
-  `127.0.0.1:3001`), and its secrets (database, 42 OAuth, badge) are read from
-  `contbuild/.env`, not from Vault.
+- The database password is still in `contbuild/.env`: the `db` service and the
+  `DATABASE_URL` of the API get it from Compose, so it is visible in `docker inspect`.
+- The API (`127.0.0.1:3001`) and the database (`127.0.0.1:5432`) are still published
+  on localhost, so the API can be reached without going through the WAF from the
+  host itself.
 - `~/vault-init.json` holds both the unseal keys and the root token, and the
   bootstrap keeps using the root token to stay idempotent. In production, the keys
   would be split between several people and the root token revoked.
