@@ -24,14 +24,17 @@ the browser: a real physical device talks to the backend.
 
 **Technical challenges:**
 
-- **Hardware and firmware:** the ESP32 reads the card UID over I2C (MFRC522) and sends
-  it to the API. Over Wi-Fi it uses HTTPS with the server certificate pinned in the
-  firmware (`setCACert`, no `setInsecure`), with the clock synced by NTP so that the
-  certificate dates can be checked. It finds the server with mDNS.
-- **Networks that isolate devices:** the campus Wi-Fi blocks mDNS and device-to-device
-  traffic. We added a second transport: the ESP32 is plugged into the kiosk PC over
-  USB and `webapp/badge-bridge` reads the UIDs on the serial port and sends them to the
-  same `POST /api/scan` route. The backend does not depend on the transport.
+- **Hardware and firmware:** the ESP32 reads the card UID over I2C (MFRC522) and prints
+  it on its USB serial link (`UID read: <UID>`). It holds no secret.
+- **From a USB device to the API:** `webapp/badge-bridge`, on the kiosk PC, reads the
+  serial port, checks the UID format and sends each UID to `POST /api/scan` with the
+  device token, over HTTPS behind the WAF (the WAF's self-signed certificate is trusted
+  with `NODE_EXTRA_CA_CERTS`, certificate checks stay on). At startup it calls
+  `POST /api/hello` to check the address and the token.
+- **Choosing the transport:** a first version sent the scans over Wi-Fi (HTTPS with a
+  certificate pinned in the firmware, NTP, mDNS). The campus Wi-Fi isolates devices and
+  blocks mDNS, so the reader could not reach the server: we moved to USB, which works
+  on any network and keeps the device token off the device.
 - **Pairing a scan with the right browser:** the reader does not know which browser is
   waiting. The browser opens a WebSocket (`/ws`) and starts an action (`pair` or
   `login`); the API answers with a random 128-bit code that the browser sends on the
@@ -102,9 +105,9 @@ the countermeasures listed above. It is comparable in size to the listed Major m
 - 42 OAuth and badge reader, first in a standalone server, then ported into the team API
   with Lucas (`webapp/backend`), who reviewed and hardened them.
 - 2FA (TOTP) in the API and in the front.
-- ESP32 firmware (separate branch `Firmware_ESP32_Anto`) and the USB bridge.
-- **Challenges:** the campus Wi-Fi isolates devices and blocks mDNS, so the reader could
-  not find the server: solved with the USB transport. A badge UID can be cloned:
+- ESP32 firmware (branch `Firmware_ESP32_Anto`) and the USB bridge.
+- **Challenges:** the campus Wi-Fi isolates devices and blocks mDNS, so the Wi-Fi reader
+  could not find the server: solved by moving to USB. A badge UID can be cloned:
   solved by treating the badge as a shortcut protected by 2FA, the device token and the
   kiosk IP restriction.
 
@@ -118,7 +121,7 @@ In `contbuild/.env`:
   (`http://localhost:3000/api/auth/42/callback` without it); it must be listed, exactly,
   in the Redirect URI field of the intranet application.
 - `FRONT_URL`: address of the site, where the API sends the user back after a 42 login.
-- `DEVICE_TOKEN`: same value as in the firmware `secrets.h` and in the bridge `.env`.
+- `DEVICE_TOKEN`: same value as in the bridge `.env` (`webapp/badge-bridge/.env`).
 - `BADGE_UID_SECRET`: at least 32 characters (`openssl rand -hex 32`).
 - `BADGE_LOGIN_ALLOWED_IPS`: IP of the kiosk PC, as seen by the API.
 
