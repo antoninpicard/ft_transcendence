@@ -19,6 +19,8 @@ all: $(ENV_FILE) $(SECRETS) $(CERT)
 	# nginx resolves the app address only at startup: if the app was recreated with a new IP,
 	# the WAF would answer 502. Restarting nginx makes it resolve the current address.
 	docker compose restart nginx
+	@echo ""
+	@echo "Site ready: https://localhost:8443 (accept the self-signed certificate warning in the browser)"
 
 $(ENV_FILE) $(SECRETS):
 	@echo "Missing $@: copy $@.example to $@ and fill in the values" && exit 1
