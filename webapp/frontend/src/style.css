@@ -206,6 +206,10 @@ a:hover {
 	color: var(--chocolate-soft);
 }
 
+.warning-message {
+	border-left: 4px solid var(--caramel);
+}
+
 .error-message {
 	color: var(--danger);
 }

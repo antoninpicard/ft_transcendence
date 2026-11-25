@@ -98,12 +98,14 @@ onMounted(refreshStatus);
 		<p>Scanne ce QR code avec une application d'authentification (Google Authenticator, FreeOTP...), puis entre le code qu'elle affiche.</p>
 		<img :src="qrImage" alt="QR code à scanner avec l'application d'authentification" width="200" height="200">
 		<p>Ou saisis cette clé à la main : <code>{{ secret }}</code></p>
+		<p class="form-message warning-message" role="note"><strong>Important :</strong> garde ce compte dans ton application tant que la double authentification est activée. Sans les codes de l'application, tu ne pourras plus te connecter ni la désactiver. Pour l'enlever, désactive-la d'abord ici, puis supprime-la de l'application.</p>
 		<label for="enable-code">Code</label>
 		<input id="enable-code" v-model="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
 		<button type="submit">Confirmer l'activation</button>
 	</form>
 
 	<form v-if="enabled" class="two-factor-setup" novalidate @submit.prevent="disable">
+		<p class="form-message warning-message" role="note">Désactive la double authentification ici avant de supprimer le compte de ton application : il faut un de ses codes.</p>
 		<label for="disable-code">Code actuel de ton application</label>
 		<input id="disable-code" v-model="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
 		<button type="submit" class="secondary-button">Désactiver la double authentification</button>
