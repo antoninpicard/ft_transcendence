@@ -26,7 +26,7 @@ async function isLoggedIn()
 {
 	try
 	{
-		const response = await fetch("/api/me");
+		const response = await fetch("/api/auth/me");
 		return response.ok;
 	}
 	catch

@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, nextTick, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import CasinoTable from "../components/CasinoTable.vue";
 import RouletteWheel from "../components/RouletteWheel.vue";
-import { post, startBadgeAction } from "../api.js";
+import { request, startBadgeAction } from "../api.js";
 import { nudge, shake, celebrate, busted } from "../effects.js";
 
 const HINT_EMAIL = "CHOISIS UNE COULEUR POUR TE CONNECTER";
@@ -12,10 +12,17 @@ const BETS = [
 	{ color: "red", label: "ROUGE", class: "btn-red" },
 	{ color: "black", label: "NOIR", class: "btn-black" }
 ];
+const OAUTH_ERRORS = {
+	oauth_state: "La connexion 42 a expiré, réessaie.",
+	oauth_denied: "Tu as refusé la connexion sur l'intra 42.",
+	oauth_email_taken: "L'email de ton compte 42 est déjà utilisé par un autre compte.",
+	oauth_unavailable: "La connexion 42 est indisponible pour le moment."
+};
 
 const router = useRouter();
+const route = useRoute();
 
-const email = ref("");
+const identifier = ref("");
 const password = ref("");
 const formError = ref("");
 const invalidFields = ref([]);
@@ -57,13 +64,19 @@ function clearFormError()
 	invalidFields.value = [];
 }
 
-// Same rules as the backend: x@y.z email and a non-empty password
+// Same rules as the backend: an email or username of 1 to 254 characters and a non-empty password
 function validateForm()
 {
 	clearFormError();
-	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value))
+	const trimmed = identifier.value.trim();
+	if (trimmed.length === 0)
 	{
-		showFormError("Email invalide.", ["email"]);
+		showFormError("Entre ton email ou ton pseudo.", ["identifier"]);
+		return false;
+	}
+	if (trimmed.length > 254)
+	{
+		showFormError("Email ou pseudo trop long.", ["identifier"]);
 		return false;
 	}
 	if (password.value.length === 0)
@@ -101,11 +114,11 @@ function showResult(title, titleClass, subtitle)
 	result.value = { title, class: titleClass, subtitle };
 }
 
-// Turn a /api/login status code into a message for the player
+// Turn a /api/auth/login status code into a message for the player
 function loginErrorMessage(status)
 {
 	if (status === 401)
-		return "Email ou mot de passe incorrect.";
+		return "Identifiant ou mot de passe incorrect.";
 	if (status === 429)
 		return "Trop de tentatives, attends un peu.";
 	return "Le casino est fermé (erreur serveur). Réessaie plus tard.";
@@ -150,7 +163,7 @@ async function play(color)
 	}
 
 	showResult("GAGNÉ !", "glow-yellow", "Vérification de tes jetons…");
-	const response = await post("/api/login", { email: email.value, password: password.value });
+	const response = await request("POST", "/api/auth/login", { identifier: identifier.value.trim(), password: password.value });
 
 	if (response.ok)
 	{
@@ -160,7 +173,7 @@ async function play(color)
 
 	shake(card.value);
 	showResult("GAGNÉ… MAIS REFUSÉ", "glow-pink", "");
-	showFormError(loginErrorMessage(response.status), response.status === 401 ? ["email", "password"] : []);
+	showFormError(loginErrorMessage(response.status), response.status === 401 ? ["identifier", "password"] : []);
 	setBetsEnabled(true);
 }
 
@@ -194,11 +207,11 @@ function chooseLogin42()
 async function startBadgeLogin()
 {
 	badgeSocket?.close();
-	const start = await startBadgeAction("/api/badge-login/start", async (message) =>
+	const start = await startBadgeAction("/api/badge/login", async (message) =>
 	{
 		if (message.status === "login-ready")
 		{
-			const confirm = await post("/api/badge-login/confirm", { token: message.token });
+			const confirm = await request("POST", "/api/badge/login/confirm", { token: message.token });
 			if (confirm.ok)
 				router.push("/home");
 			else
@@ -210,13 +223,22 @@ async function startBadgeLogin()
 
 	if (!start.ok)
 	{
-		badgeStatus.value = start.data.error;
+		badgeStatus.value = start.error;
 		return;
 	}
 	badgeSocket = start.socket;
 	badgeStatus.value = "Scanne ton badge dans les 30 secondes...";
 }
 
+// Show why the 42 login failed when the API sent us back with ?oauth_error=...
+function showOauthError()
+{
+	const message = OAUTH_ERRORS[route.query.oauth_error];
+	if (message)
+		showFormError(message, []);
+}
+
+onMounted(showOauthError);
 onUnmounted(() => badgeSocket?.close());
 </script>
 
@@ -230,9 +252,9 @@ onUnmounted(() => badgeSocket?.close());
 
 				<form class="mt-8 space-y-4" novalidate @submit.prevent @keydown.enter.prevent="onEnter">
 					<div>
-						<label for="email" class="block text-sm font-bungee glow-cyan mb-1">EMAIL</label>
-						<input id="email" v-model="email" name="email" type="email" autocomplete="email" required class="input-neon"
-							:class="{ 'input-error': invalidFields.includes('email') }" :aria-invalid="invalidFields.includes('email') || null"
+						<label for="identifier" class="block text-sm font-bungee glow-cyan mb-1">EMAIL OU PSEUDO</label>
+						<input id="identifier" v-model="identifier" name="identifier" type="text" autocomplete="username" maxlength="254" required class="input-neon"
+							:class="{ 'input-error': invalidFields.includes('identifier') }" :aria-invalid="invalidFields.includes('identifier') || null"
 							:disabled="!betsEnabled" @input="onInput">
 					</div>
 					<div>

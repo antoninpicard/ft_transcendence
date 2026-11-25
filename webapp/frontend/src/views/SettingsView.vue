@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
-import { get, post, startBadgeAction } from "../api.js";
+import { request, startBadgeAction } from "../api.js";
 
 const linked = ref(false);
 const badgeStatus = ref("Chargement...");
@@ -10,10 +10,10 @@ let pairingSocket = null;
 // Fetch and display whether a badge is currently linked to this account
 async function refreshBadgeStatus()
 {
-	const response = await get("/api/badge/status");
+	const response = await request("GET", "/api/badge");
 	if (!response.ok)
 	{
-		badgeStatus.value = response.data.error;
+		badgeStatus.value = response.error;
 		return;
 	}
 	linked.value = response.data.linked;
@@ -24,7 +24,7 @@ async function refreshBadgeStatus()
 async function startPairing()
 {
 	pairingSocket?.close();
-	const start = await startBadgeAction("/api/pairing/start", (message) =>
+	const start = await startBadgeAction("/api/badge/pairing", (message) =>
 	{
 		if (message.status === "paired")
 		{
@@ -37,20 +37,20 @@ async function startPairing()
 
 	if (!start.ok)
 	{
-		pairingStatus.value = start.data.error;
+		pairingStatus.value = start.error;
 		return;
 	}
 	pairingSocket = start.socket;
-	pairingStatus.value = "Scanne ton badge dans les 30 secondes (code: " + start.data.code + ")";
+	pairingStatus.value = "Scanne ton badge dans les 30 secondes...";
 }
 
 // Unlink the currently linked badge from this account
 async function unlink()
 {
-	const response = await post("/api/badge/unlink");
+	const response = await request("DELETE", "/api/badge");
 	if (!response.ok)
 	{
-		pairingStatus.value = response.data.error;
+		pairingStatus.value = response.error;
 		return;
 	}
 	pairingStatus.value = "Badge délié.";

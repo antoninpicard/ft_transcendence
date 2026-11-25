@@ -1,13 +1,13 @@
 <script setup>
 import { useRouter } from "vue-router";
-import { post } from "../api.js";
+import { request } from "../api.js";
 
 const router = useRouter();
 
 // Log out and go back to the login page
 async function logout()
 {
-	await post("/api/logout");
+	await request("POST", "/api/auth/logout");
 	router.replace("/login");
 }
 </script>
