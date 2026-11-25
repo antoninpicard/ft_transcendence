@@ -1424,14 +1424,3 @@ from this file: use a browser, or a tool such as `websocat`.
   same instant can be committed in the opposite order of their timestamps, so
   a client may in rare cases miss one: the front should re-fetch the last few
   messages from time to time.
-
----
-
-## Not implemented yet
-
-| Area | Plan |
-|---|---|
-| HTTPS | Terminated by a reverse proxy in front of this service; in-cluster traffic stays plain, as the subject allows. |
-| WAF routing | Point the WAF's `/api` traffic at the `api` service and retire `infra/`, once Antonin has validated the integration. |
-| Real-time (game, chat push) | The `ws` server mounted in `server.js` only serves badge results on `/ws`; chat works by polling, and the game and message push would reuse this server. |
-| Linting | ESLint + Prettier, to be agreed on before several people commit. |
