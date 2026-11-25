@@ -3,7 +3,9 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const VAULT_ADDR = process.env.VAULT_ADDR;
-const SECRET_PATH = process.env.VAULT_SECRET_PATH;
+// One or more Vault paths, separated by commas (e.g. the API reads its own secret and the
+// database password). Later paths win if a key appears twice.
+const SECRET_PATHS = (process.env.VAULT_SECRET_PATH || '').split(',').map((p) => p.trim()).filter(Boolean);
 
 async function vaultRequest(path, token, body) {
   const res = await fetch(`${VAULT_ADDR}/v1/${path}`, {
@@ -27,8 +29,11 @@ async function main() {
     role_id: roleId,
     secret_id: secretId,
   });
-  const secret = await vaultRequest(SECRET_PATH, login.auth.client_token);
-  const values = secret.data.data;
+  const values = {};
+  for (const path of SECRET_PATHS) {
+    const secret = await vaultRequest(path, login.auth.client_token);
+    Object.assign(values, secret.data.data);
+  }
   console.log(`vault-exec: loaded ${Object.keys(values).length} secrets`);
 
   // Start the real command with the secrets added to its environment

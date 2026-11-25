@@ -32,21 +32,24 @@ services:
     env_file: !override
       - path: ../contbuild/.env
         required: false
-    # Same start command as contbuild/api.Dockerfile, run through vault-exec.js: it logs in
-    # with the backend AppRole, reads secret/backend/app and adds it to the environment
-    # (Vault values win over contbuild/.env)
-    command: ["node", "/vault/vault-exec.js", "sh", "-c", "node src/db/migrate.js && exec node src/server.js"]
+    # vault-exec.js logs in with the backend AppRole, reads secret/backend/app and
+    # secret/db/app and adds them to the environment (Vault values win over contbuild/.env).
+    # api-start.sh then builds DATABASE_URL and runs the commands of contbuild/api.Dockerfile.
+    command: ["node", "/vault/vault-exec.js", "sh", "/vault/api-start.sh"]
     environment:
       VAULT_ADDR: http://vault:8200
-      VAULT_SECRET_PATH: secret/data/backend/app
+      VAULT_SECRET_PATH: secret/data/backend/app,secret/data/db/app
       # These secrets come from Vault only: emptied here so that a value written in
       # contbuild/.env never reaches the container (docker inspect); vault-exec.js then
-      # sets them from secret/backend/app
+      # sets them from Vault. DATABASE_URL (with the password) is built at startup.
       DEVICE_TOKEN: ""
       BADGE_UID_SECRET: ""
       FORTYTWO_CLIENT_SECRET: ""
+      POSTGRES_PASSWORD: ""
+      DATABASE_URL: ""
     volumes:
       - ./vault/wrapper/vault-exec.js:/vault/vault-exec.js:ro
+      - ./vault/wrapper/api-start.sh:/vault/api-start.sh:ro
       - ./vault/run/backend:/run/vault:ro
     networks:
       - default
@@ -56,3 +59,18 @@ services:
     # Not published: only the API reaches the database, on the internal Compose network.
     # "npm run db:up" (contbuild/docker-compose.yml alone) still publishes 127.0.0.1:5432.
     ports: !reset []
+    # The password comes from Vault (secret/db/app, db AppRole): vault-exec.sh exports it,
+    # then runs the normal entrypoint of the Postgres image
+    entrypoint: ["/bin/sh", "/vault/vault-exec.sh"]
+    command: ["docker-entrypoint.sh", "postgres"]
+    environment:
+      POSTGRES_PASSWORD: ""
+      VAULT_ADDR: http://vault:8200
+      VAULT_SECRET_PATH: secret/data/db/app
+      VAULT_SECRET_KEYS: POSTGRES_PASSWORD
+    volumes:
+      - ./vault/wrapper/vault-exec.sh:/vault/vault-exec.sh:ro
+      - ./vault/run/db:/run/vault:ro
+    networks:
+      - default
+      - vault-net

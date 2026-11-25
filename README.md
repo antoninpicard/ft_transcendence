@@ -42,25 +42,30 @@ newgrp docker
 
 ### First run
 
-1. **Configuration files.** Copy the three example files and fill in real values.
+1. **Configuration files.** Copy the four example files and fill in real values.
    They are ignored by Git, and `make` stops with a message if one is missing.
 
    ```sh
    cp contbuild/.env.example contbuild/.env
-   # edit contbuild/.env: POSTGRES_*, CORS_ORIGIN (https://localhost:8443), ...
+   # edit contbuild/.env: POSTGRES_USER, POSTGRES_DB, CORS_ORIGIN (https://localhost:8443), ...
    cp cybersecurity/vault/secrets/app.env.example cybersecurity/vault/secrets/app.env
    # edit cybersecurity/vault/secrets/app.env: SESSION_SECRET, DEVICE_TOKEN
    cp cybersecurity/vault/secrets/backend.env.example cybersecurity/vault/secrets/backend.env
    # edit cybersecurity/vault/secrets/backend.env: DEVICE_TOKEN, BADGE_UID_SECRET, FORTYTWO_CLIENT_SECRET
+   cp cybersecurity/vault/secrets/db.env.example cybersecurity/vault/secrets/db.env
+   # edit cybersecurity/vault/secrets/db.env: POSTGRES_PASSWORD (openssl rand -hex 32)
    ```
 
-   - `contbuild/.env` holds the configuration: it is read by Compose (database
-     credentials) and by the `api` and `db` services. The `app` service does not read
-     it, and the API ignores the secrets written there (`DEVICE_TOKEN`,
-     `BADGE_UID_SECRET`, `FORTYTWO_CLIENT_SECRET`): leave them empty.
+   - `contbuild/.env` holds the configuration, read by Compose and by the `api` and
+     `db` services. The `app` service does not read it. In the integrated stack, the
+     secrets written there are ignored (`DEVICE_TOKEN`, `BADGE_UID_SECRET`,
+     `FORTYTWO_CLIENT_SECRET`, `POSTGRES_PASSWORD`, `DATABASE_URL`).
+     `POSTGRES_PASSWORD` must still be non-empty, because
+     `contbuild/docker-compose.yml` requires it; it is only used by
+     `npm run db:up` (local development of the API).
    - `cybersecurity/vault/secrets/*.env` are only read by the bootstrap script, which
-     loads them into Vault. The app and the API get their secrets from Vault.
-     `DEVICE_TOKEN` must be the same in `app.env` and `backend.env`.
+     loads them into Vault. The app, the API and the database get their secrets from
+     Vault. `DEVICE_TOKEN` must be the same in `app.env` and `backend.env`.
 
 2. **TLS certificate:** nothing to do. If `cybersecurity/waf/certs/server.crt` is
    missing, `make` creates a self-signed certificate for `localhost` with `openssl`
@@ -184,10 +189,13 @@ in the image, in the Compose files or in Git.
 ```
                                                      /api/..., /ws
 browser --HTTPS:8443--> nginx + ModSecurity (WAF) ----------------> api:3000 --> db:5432
-                                                 \                     \
+                                                 \                     \           |
                                                   \ everything else     \ (vault-net)
                                                    `--------> app:3000 --+--> vault:8200
 ```
+
+The app, the API and the database each read their own secrets from Vault, on the
+internal `vault-net` network.
 
 The WAF port (8443) is the only published port. In the integrated stack, the ports of
 the API (3001) and of the database (5432) are removed (`ports: !reset []` in
@@ -217,17 +225,27 @@ for local development.
   threshold 2.
 - Isolated: Vault is only on the `vault-net` network (`internal: true`), its port is
   not published, and the WAF cannot even resolve its name.
-- One AppRole and one read-only policy per service
-  (`policies/app-read.hcl` gives read access to `secret/data/app/*` only).
+- One AppRole and one read-only policy per service:
+
+  | AppRole | Used by | Can read |
+  |---|---|---|
+  | `app` | app (`infra/`) | `secret/app/*` |
+  | `backend` | API (`webapp/backend`) | `secret/backend/*`, `secret/db/*` (to build its `DATABASE_URL`) |
+  | `db` | Postgres | `secret/db/*` |
 - `scripts/bootstrap.sh` is idempotent: it initializes Vault only once, unseals it,
   enables KV v2 and AppRole, writes the policies and roles, and loads
   `secrets/<service>.env` into `secret/<service>/app`.
 - The app and the API start through `wrapper/vault-exec.js`: it logs in with the
-  service's AppRole credentials (mounted read-only from `vault/run/app/` or
-  `vault/run/backend/`), reads its secrets (`secret/app/app` or `secret/backend/app`)
-  and starts the real command with them in its environment. The values never appear
-  in `docker inspect` or in the image. For the API, the secret keys are also emptied
-  in the Compose file, so a value left in `contbuild/.env` never reaches the container.
+  service's AppRole credentials (mounted read-only from `vault/run/<service>/`), reads
+  its secrets (one or more paths in `VAULT_SECRET_PATH`) and starts the real command
+  with them in its environment. The values never appear in `docker inspect` or in the
+  image. For the API and the database, the secret keys are also emptied in the
+  Compose file, so a value left in `contbuild/.env` never reaches the container.
+- The API runs `wrapper/api-start.sh`, which builds its `DATABASE_URL` from
+  `POSTGRES_PASSWORD` (URL-encoded) before the migrations and the server.
+- Postgres has no Node: it starts through `wrapper/vault-exec.sh`, a POSIX shell
+  version (wget and sed) that exports `POSTGRES_PASSWORD`, then runs the normal
+  entrypoint of the image.
 
 **Tests:** `waf/tests/waf-test.sh` (WAF alone, with the `whoami` test backend) and
 `waf/tests/waf-app-test.sh` (integrated app): legitimate traffic must pass, SQL
@@ -245,8 +263,14 @@ WAF cannot resolve Vault, which has no Internet access. It prints status codes o
   "select ... from", "--", "1 OR 2") and on passwords with many symbols. Targeted
   exclusions are still to be written for the real fields.
 - The certificate is self-signed (development only).
-- The database password is still in `contbuild/.env`: the `db` service and the
-  `DATABASE_URL` of the API get it from Compose, so it is visible in `docker inspect`.
+- Postgres only uses `POSTGRES_PASSWORD` when its data volume is created. Changing
+  it in Vault does not change the password of an existing database: it must also be
+  changed in Postgres (`ALTER USER`), or the volume recreated (`make fclean`).
+- The Postgres image trusts connections from inside its own container
+  (`127.0.0.1`, without password); connections from other containers need the
+  password (`scram-sha-256`).
+- `wrapper/vault-exec.sh` parses JSON with `sed`: secret values must not contain
+  double quotes or backslashes (generated hex values are fine).
 - `~/vault-init.json` holds both the unseal keys and the root token, and the
   bootstrap keeps using the root token to stay idempotent. In production, the keys
   would be split between several people and the root token revoked.
