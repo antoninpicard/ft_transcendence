@@ -67,6 +67,21 @@ describe('limitation de débit', () => {
     assert.equal((await post(base, '/api/auth/register')).status, 429);
   });
 
+  it('limite la vérification du code 2FA à 10 par minute', async () => {
+    const base = await start({ rateLimit: true });
+    const path = '/api/auth/2fa/verify';
+    assert.deepEqual(await statuses(base, path, 10), Array(10).fill(400));
+    assert.equal((await post(base, path)).status, 429);
+  });
+
+  it("limite l'activation et la désactivation de la 2FA à 10 par minute chacune", async () => {
+    const base = await start({ rateLimit: true });
+    for (const path of ['/api/auth/2fa/enable', '/api/auth/2fa/disable']) {
+      assert.deepEqual(await statuses(base, path, 10), Array(10).fill(401), path);
+      assert.equal((await post(base, path)).status, 429, path);
+    }
+  });
+
   it('ne partage pas les compteurs entre la connexion et l\'inscription', async () => {
     const base = await start({ rateLimit: true });
     await statuses(base, '/api/auth/register', 6);
