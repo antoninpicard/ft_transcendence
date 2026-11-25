@@ -212,6 +212,12 @@ for local development.
   refused (CRS rule 911100). `TRACE` is refused by nginx itself (405).
 - Local rule `10001` (`waf/rules/before-crs.conf`): blocks `/.env` and `/.git`
   paths, case-insensitive.
+- Targeted exclusion `10010` (same file): on `POST /api/messages/<uuid>` only, the
+  JSON field `body` (free text) is removed from 8 SQL rules of paranoia level 2
+  (942180, 942200, 942260, 942300, 942390, 942440, 942480, 942520), which blocked
+  normal messages such as "select ... from", "--" or "1 OR 2". Level 1 rules and XSS
+  rules still check this field, and every other field and route keeps paranoia 2:
+  `' OR '1'='1` and `<script>` in a message are still blocked.
 - Routing (`waf/nginx/location_common.conf.template`, integrated stack only):
   `/api/...` and the `/ws` WebSocket go to the API, everything else to the app.
   ModSecurity is enabled for the whole server, so both are filtered.
@@ -260,8 +266,9 @@ WAF cannot resolve Vault, which has no Internet access. It prints status codes o
 - ModSecurity copies the matched value into the `data` and `match` fields of the
   audit log. A password that triggers a rule therefore appears in the logs.
 - Paranoia level 2 has false positives on some free text (for example
-  "select ... from", "--", "1 OR 2") and on passwords with many symbols. Targeted
-  exclusions are still to be written for the real fields.
+  "select ... from", "--", "1 OR 2"). Messages are covered by exclusion `10010`;
+  other free-text fields added later will need their own targeted exclusion.
+  Passwords with many symbols can also be blocked at login.
 - The certificate is self-signed (development only).
 - Postgres only uses `POSTGRES_PASSWORD` when its data volume is created. Changing
   it in Vault does not change the password of an existing database: it must also be
