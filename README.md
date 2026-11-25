@@ -78,9 +78,8 @@ newgrp docker
    it uses the current address of the app.
 
 4. Open **https://localhost:8443** (accept the self-signed certificate).
-   The app port (3000) is not published: the app is only reachable through the WAF.
-   The API (`127.0.0.1:3001`) and the database (`127.0.0.1:5432`) are published on
-   localhost only.
+   It is the only published port: the app, the API, the database and Vault are only
+   reachable inside Docker, so every request goes through the WAF.
 
 On the first run, the bootstrap writes the Vault unseal keys and root token to
 `~/vault-init.json` (mode 600, outside the repository). Keep this file: without it,
@@ -190,8 +189,11 @@ browser --HTTPS:8443--> nginx + ModSecurity (WAF) ----------------> api:3000 -->
                                                    `--------> app:3000 --+--> vault:8200
 ```
 
-The WAF port (8443) is the only one published on all interfaces. The app and Vault
-are not published; the API and the database are published on `127.0.0.1` only.
+The WAF port (8443) is the only published port. In the integrated stack, the ports of
+the API (3001) and of the database (5432) are removed (`ports: !reset []` in
+`docker-compose.app.yml`); `npm run db:up` in `webapp/backend`, which uses
+`contbuild/docker-compose.yml` alone, still publishes the database on `127.0.0.1:5432`
+for local development.
 
 **WAF (`cybersecurity/docker-compose.yml`, `cybersecurity/waf/`):**
 
@@ -245,9 +247,6 @@ WAF cannot resolve Vault, which has no Internet access. It prints status codes o
 - The certificate is self-signed (development only).
 - The database password is still in `contbuild/.env`: the `db` service and the
   `DATABASE_URL` of the API get it from Compose, so it is visible in `docker inspect`.
-- The API (`127.0.0.1:3001`) and the database (`127.0.0.1:5432`) are still published
-  on localhost, so the API can be reached without going through the WAF from the
-  host itself.
 - `~/vault-init.json` holds both the unseal keys and the root token, and the
   bootstrap keeps using the root token to stay idempotent. In production, the keys
   would be split between several people and the root token revoked.

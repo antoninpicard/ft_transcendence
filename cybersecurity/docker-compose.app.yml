@@ -25,6 +25,9 @@ services:
       - app
 
   api:
+    # Not published: in the integrated stack the API is only reachable through the WAF
+    # (/api, /ws). Lucas's own setup (contbuild/docker-compose.yml alone) is unchanged.
+    ports: !reset []
     # Paths are relative to cybersecurity/ (directory of the first Compose file)
     env_file: !override
       - path: ../contbuild/.env
@@ -48,3 +51,8 @@ services:
     networks:
       - default
       - vault-net
+
+  db:
+    # Not published: only the API reaches the database, on the internal Compose network.
+    # "npm run db:up" (contbuild/docker-compose.yml alone) still publishes 127.0.0.1:5432.
+    ports: !reset []
