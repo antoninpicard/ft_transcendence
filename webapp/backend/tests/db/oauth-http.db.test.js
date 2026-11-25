@@ -180,6 +180,34 @@ describe('callback 42', () => {
     assert.equal(replay.headers.get('location'), '/login?oauth_error=oauth_state');
   });
 
+  it('demande le code 2FA quand le compte l a activée', async () => {
+    const first = await start();
+    await get(`/api/auth/42/callback?code=ok&state=${first.state}`, first.cookie);
+    const { generateSecret, codeAt, currentStep } = await import('../../src/utils/totp.js');
+    const secret = generateSecret();
+    await query('UPDATE users SET totp_secret = $1, totp_enabled = true WHERE username = $2', [
+      secret,
+      profile.login,
+    ]);
+
+    const { state, cookie } = await start();
+    const res = await get(`/api/auth/42/callback?code=ok&state=${state}`, cookie);
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get('location'), '/login/2fa');
+    assert.equal(cookieNamed(res, 'sid'), undefined);
+    const pending = cookieNamed(res, 'twofa_pending');
+    assert.ok(pending);
+
+    const verify = await fetch(`${base}/api/auth/2fa/verify`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: pending.split(';')[0] },
+      body: JSON.stringify({ code: codeAt(secret, currentStep(Date.now())) }),
+    });
+    assert.equal(verify.status, 200);
+    assert.equal((await verify.json()).email, profile.email);
+    assert.ok(cookieNamed(verify, 'sid'));
+  });
+
   it('traite le refus de l utilisateur', async () => {
     const { state, cookie } = await start();
     const res = await get(`/api/auth/42/callback?error=access_denied&state=${state}`, cookie);

@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 const DEVICE_TOKEN = process.env.DEVICE_TOKEN;
 const created = [];
 let closePool;
+let query;
 let uniqueUser, cleanupUsers;
 let hashBadgeUid;
 let createApp;
@@ -18,7 +19,7 @@ let base;
 const bodies = [];
 
 before(async () => {
-  ({ closePool } = await import('../../src/db/pool.js'));
+  ({ closePool, query } = await import('../../src/db/pool.js'));
   ({ uniqueUser, cleanupUsers } = await import('./helpers.js'));
   ({ hashBadgeUid } = await import('../../src/services/badgeUid.js'));
   ({ createApp } = await import('../../src/app.js'));
@@ -159,6 +160,43 @@ describe('routes de la badgeuse', () => {
     const me = await call('GET', '/api/auth/me', { cookie: sid.split(';')[0] });
     assert.equal(me.res.status, 200);
     assert.equal(me.json.id, confirm.json.id);
+  });
+
+  it('demande le code 2FA après le badge quand le compte l a activée', async () => {
+    const cookie = await register();
+    const uid = randomUid();
+    await link(cookie, uid);
+    const { generateSecret, codeAt, currentStep } = await import('../../src/utils/totp.js');
+    const secret = generateSecret();
+    const me = await call('GET', '/api/auth/me', { cookie });
+    await query('UPDATE users SET totp_secret = $1, totp_enabled = true WHERE id = $2', [
+      secret,
+      me.json.id,
+    ]);
+
+    const start = await call('POST', '/api/badge/login');
+    const received = [];
+    app.locals.badgeActions.attachSocket(start.json.code, {
+      send: (msg) => received.push(JSON.parse(msg)),
+      close: () => {},
+    });
+    await scan(uid);
+    const confirm = await call('POST', '/api/badge/login/confirm', {
+      body: { token: received[0].token },
+    });
+    assert.equal(confirm.res.status, 200);
+    assert.deepEqual(confirm.json, { twoFactorRequired: true });
+    const cookies = confirm.res.headers.getSetCookie();
+    assert.equal(cookies.find((c) => c.startsWith('sid=')), undefined);
+    const pending = cookies.find((c) => c.startsWith('twofa_pending='));
+    assert.ok(pending);
+
+    const verify = await call('POST', '/api/auth/2fa/verify', {
+      cookie: pending.split(';')[0],
+      body: { code: codeAt(secret, currentStep(Date.now())) },
+    });
+    assert.equal(verify.res.status, 200);
+    assert.equal(verify.json.id, me.json.id);
   });
 
   it('refuse un jeton de confirmation invalide ou réutilisé', async () => {

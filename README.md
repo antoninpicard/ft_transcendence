@@ -6,17 +6,21 @@
 
 TODO (team): project name and goal.
 
-ft_transcendence is a web application where users create an account with an email
-and a password, and can link a physical RFID badge to their account. The badge is
-read by an ESP32 device; once linked, it can be used to log in without typing a
-password.
+ft_transcendence is a web application where users create an account with a
+username, an email and a password, or log in with their 42 account. They can link a
+physical NFC badge to their account: the badge is read by an ESP32 device and, once
+linked, logs them in at the kiosk without typing a password.
 
 Key features:
 
-- Sign up and log in with email and password (bcrypt-hashed passwords, server-side sessions).
-- Link, check and unlink an RFID badge from the settings page.
-- Log in by scanning a linked badge, with real-time feedback over WebSocket.
-- HTTPS only, behind a Web Application Firewall, with secrets stored in Vault.
+- Sign up, then log in with the username or the email and the password (argon2id
+  hashes, server-side sessions), or with the 42 intranet (OAuth 2.0).
+- Two-factor authentication (TOTP) on every login method.
+- Link, check and unlink an NFC badge from the settings page; log in by scanning it,
+  with real-time feedback over WebSocket.
+- Public profiles, friends and direct messages between friends.
+- A public REST API, usable by scripts with a personal API key.
+- A scratch-ticket game.
 
 The application is served over HTTPS only, behind a Web Application Firewall
 (nginx + ModSecurity + OWASP Core Rule Set). Its secrets are stored in
@@ -177,7 +181,8 @@ its sessions, badge, API keys, friendships and messages.
 | `friendships` | `id` uuid PK, `status` | `requester_id`, `addressee_id` → `users` |
 | `messages` | `id` uuid PK, `body`, `created_at` | `sender_id`, `recipient_id` → `users` |
 
-- `users`: one row per account. Only the bcrypt hash of the password is stored.
+- `users`: one row per account. Only the argon2id hash of the password is stored
+  (`password_hash` is null for accounts created with 42).
 - `badges`: at most one badge per user (`user_id` is unique) and one user per badge
   (`uid_hash` is unique). Only a hash of the badge UID is stored. Deleting a user
   deletes their badge link.
@@ -194,7 +199,10 @@ its sessions, badge, API keys, friendships and messages.
 | Real-time feedback | anpicard, lucnavar | WebSocket `/ws` bound to a pending badge action by its random code. |
 | Badge reader | anpicard | ESP32 + MFRC522 over USB (`firmware/`), USB bridge on the kiosk PC (`webapp/badge-bridge`), `/api/hello` and `/api/scan` protected by `DEVICE_TOKEN`. |
 | Scratch-ticket game | tmarion | Ticket choice, key sequence to scratch, revealed prize (`/game`). |
-| Friends, messages, API keys | lucnavar | See `webapp/backend/README.md`. |
+| Profiles and user directory | lucnavar | Public profile of any user and paginated list of accounts; the owner edits their username and email (`/api/users`, `/api/users/:id`). A profile shows how the viewer stands with that user (`relation`). |
+| Friends | lucnavar | Send, accept, decline or cancel a friend request, remove a friend, list friends and pending requests (`/api/friends`). |
+| Direct messages | lucnavar | Messages between friends, conversation list, history paginated by cursor (`/api/messages`). |
+| Public API and API keys | lucnavar | Personal API keys for scripts, created and revoked from the session, rate limited, documented in `webapp/backend/README.md` (`/api/keys`). |
 | WAF and Vault | allefran | See the Cybersecurity module below. |
 
 ## Modules
@@ -205,6 +213,8 @@ its sessions, badge, API keys, friendships and messages.
 | Module of choice: NFC badge login (ESP32 reader) | Major | 2 | anpicard |
 | Remote authentication with OAuth 2.0 (42) | Minor | 1 | anpicard, lucnavar |
 | Complete 2FA system (TOTP) | Minor | 1 | anpicard |
+| Public API with a secured API key, rate limiting and documentation | Major | 2 | lucnavar |
+| Allow users to interact with other users (profiles, friends, chat) | Major | 2 | lucnavar |
 | TODO (team): other modules | | | |
 
 ### Cybersecurity: WAF/ModSecurity + Vault
@@ -392,6 +402,70 @@ the countermeasures listed above. It is comparable in size to the listed Major m
   simultaneous requests cannot both use it); 5 wrong codes cancel the pending login;
   the 2FA routes are rate limited.
 
+### Public API with a secured API key (Major, 2 points)
+
+**What it is:** besides the browser session, every account can create personal API
+keys and call the API from a script or a third-party client with
+`Authorization: Bearer <key>`. 15 endpoints accept a key: health, the user directory
+and profiles, reading and updating one's own account, friends and messages (full list
+in `webapp/backend/README.md`, section "Public API").
+
+**Secured API key:**
+
+- A key is `trk_` followed by 256 random bits (base64url). It is shown **once**, when
+  it is created; the database only keeps its SHA-256 hash and a 12-character prefix to
+  recognise it in the list. A database dump gives no usable key.
+- Keys are created, listed and revoked only from a logged-in browser session
+  (`/api/keys`), at most 10 per account (checked under a row lock, so two parallel
+  requests cannot exceed it). Revocation is immediate; `lastUsedAt` shows when a key
+  was last used.
+- Routes that touch the account's security are **session only**: creating keys,
+  linking a badge, managing 2FA, deleting the account. A stolen key can read and write
+  the owner's data, but cannot spread to new keys, lock the owner out or delete the
+  account.
+- When an `Authorization` header is present it is the only credential looked at. An
+  invalid, revoked or malformed key answers `401` on every route instead of silently
+  falling back to the cookie or to an anonymous request, so a script learns at once
+  that its key is wrong.
+
+**Rate limiting:** 60 requests per minute per key, on top of the per-route limits
+(for example 30 messages per minute per user). Responses carry the standard
+`RateLimit-*` headers, and `429` comes with `Retry-After`.
+
+**Documentation:** `webapp/backend/README.md` describes every route: body and query
+rules, status codes, the order in which checks are made, error messages, limits. The
+request collection `webapp/backend/requests/api.http` runs the whole flow, key
+creation and use included.
+
+### User interactions: profiles, friends and chat (Major, 2 points)
+
+**Profiles:** `GET /api/users` lists every account (paginated, with the total in the
+same SQL query), `GET /api/users/:id` shows a public profile. When the caller is
+logged in, the profile carries `relation` (`self`, `friends`, `request-sent`,
+`request-received`, `none`), so the front knows which button to show. Only the owner
+can edit their username and email (`PUT` / `PATCH`), or delete their account.
+
+**Friends:** send a request, accept or decline it, cancel it, remove a friend, list
+friends and pending requests (`/api/friends`). A friendship is **one row per pair of
+users**, whatever the direction, protected by a unique index on the ordered pair:
+the database itself refuses a duplicate, even for two requests sent at the same
+instant. When both users ask each other, the second request accepts the first
+instead of creating a new one.
+
+**Chat:** direct messages between friends (`/api/messages`): the list of
+conversations with their last message, and the history of one conversation. Only
+friends can write to each other; the history stays readable after the friendship
+ends. The history is paginated by cursor on `(created_at, id)` with `after` and
+`before` instead of an offset, so new messages never shift the pages, and the front
+polls `after=<last message>` to get the new ones. Sending is limited to 30 messages per
+minute per user.
+
+**Integrity:** deleting an account removes its friendships and messages by cascade;
+every rule that could race (unique pair, key limit, unique username and email) is
+enforced by the database, not by a check made before the write.
+
+TODO (team): front pages for profiles, friends and chat.
+
 ## Individual Contributions
 
 TODO (team): each member's contributions.
@@ -407,6 +481,30 @@ TODO (team): each member's contributions.
     could not find the server: solved by moving to USB. A badge UID can be cloned:
     solved by treating the badge as a shortcut protected by 2FA, the device token and the
     kiosk IP restriction.
+- **lucnavar** (tech lead): architecture of the backend and the database, and the
+  API in `webapp/backend`.
+  - Express 5 API on PostgreSQL 17 with plain SQL: layers (routes, controllers,
+    services), validation of every request with zod, one error format, numbered
+    migrations, and the test suites (`node:test`, with and without a database).
+  - Accounts and sessions: registration, login by username or email (argon2id),
+    sessions stored as hashes, rate limits on login and registration.
+  - 42 OAuth and badge reader routes in the team API, from anpicard's standalone
+    server.
+  - Public API with API keys, profiles, friends and direct messages.
+  - The `api` and `db` services in `contbuild/`, and the backend documentation
+    (`webapp/backend/README.md`, `requests/api.http`).
+  - **Challenges:**
+    - Two users can send each other a friend request at the same moment. Checking
+      first and inserting after would leave a race window: the pair is stored once,
+      under a unique index on the ordered pair, and a crossed request accepts the
+      pending one.
+    - Paginating a conversation that keeps growing: an offset shifts as soon as a
+      message arrives, so the history uses a cursor on `(created_at, id)`. The front
+      must also not move its cursor to its own sent message, or it would skip a
+      message from the friend sent just before.
+    - A key and a cookie on the same request: a wrong key falling back to the cookie
+      would hide the error from a script. The header always wins, and an invalid one is
+      a `401` everywhere.
 - **allefran**: Cybersecurity module (WAF configuration and tests, Vault setup,
   bootstrap script, app integration through `vault-exec.js`, isolation tests,
   single-command startup in the Makefile). Challenges:

@@ -22,32 +22,54 @@ Enforced through the `engines` field in `package.json`. The binding constraint i
 
 ## Quick start
 
-The API lives in `webapp/backend/`. The whole project starts from the
-repository root with the team's compose file, `contbuild/docker-compose.yml`,
-which reads a single environment file, `contbuild/.env`.
+The API lives in `webapp/backend/`. It runs in two ways: inside the full stack
+started by `make` (behind the WAF, secrets in Vault), or alone with `npm run dev`
+while developing.
 
 ### Run everything
 
+From the repository root:
+
 ```bash
-cp contbuild/.env.example contbuild/.env   # then fill in the values
+cp contbuild/.env.example contbuild/.env
+cp cybersecurity/vault/secrets/app.env.example cybersecurity/vault/secrets/app.env
+cp cybersecurity/vault/secrets/backend.env.example cybersecurity/vault/secrets/backend.env
+cp cybersecurity/vault/secrets/db.env.example cybersecurity/vault/secrets/db.env
+# fill in the four files, then:
 make
 ```
 
-`make` builds and starts three services:
+`make` stops with a message if one of these files is missing. It starts Vault,
+loads the secrets into it (`cybersecurity/vault/scripts/bootstrap.sh`), then
+builds and starts the stack:
 
-| Service | Port | What it is |
+| Service | Reachable at | What it is |
 |---|---|---|
-| `app` | 3000 | Antonin's original server (`infra/`), unchanged |
-| `db` | 5432 | PostgreSQL 17, data in the `contbuild_db-data` volume |
-| `api` | **3001** | this API; applies pending migrations, then starts |
+| `nginx` | **`https://localhost:8443`**, the only published port | WAF (nginx + ModSecurity + OWASP CRS); sends `/api/…` and `/ws` to `api`, everything else to `app` |
+| `app` | inside the stack | the Vue front (`webapp/frontend/`) |
+| `api` | inside the stack | this API; applies pending migrations, then starts |
+| `db` | inside the stack | PostgreSQL 17, data in the `cybersecurity_db-data` volume |
+| `vault` | inside the stack | HashiCorp Vault, holds the secrets |
 
-The API is published on **3001** while it coexists with Antonin's server on
-3000. Routing the WAF to the API and retiring `infra/` wait for his agreement.
+In this stack:
 
-Inside the container the API runs with `NODE_ENV=production`, like the `app`
-service: `CORS_ORIGIN` must list explicit origins, and the session cookie is
-`Secure`, so browsers only accept it over HTTPS — behind the WAF. Use `curl`
-to test the container directly.
+- The API runs with `NODE_ENV=production`: `CORS_ORIGIN` must list explicit
+  origins (`https://localhost:8443`), and the session cookie is `Secure`.
+- Its secrets come **from Vault only**: `DEVICE_TOKEN`, `BADGE_UID_SECRET` and
+  `FORTYTWO_CLIENT_SECRET` from `cybersecurity/vault/secrets/backend.env`,
+  `POSTGRES_PASSWORD` from `cybersecurity/vault/secrets/db.env`. The same keys
+  written in `contbuild/.env` are ignored. `DATABASE_URL` is built at startup by
+  `cybersecurity/vault/wrapper/api-start.sh`.
+- The rest of the configuration (`CORS_ORIGIN`, `FRONT_URL`, `POSTGRES_USER`,
+  `POSTGRES_DB`, `FORTYTWO_CLIENT_ID`, `FORTYTWO_REDIRECT_URI`,
+  `BADGE_LOGIN_ALLOWED_IPS`…) is still read from `contbuild/.env`.
+- Logs: `docker logs cybersecurity-api-1`.
+
+The root `README.md` describes the WAF and Vault in detail.
+
+```bash
+curl -sk https://localhost:8443/api/health
+```
 
 ### Develop locally
 
@@ -59,10 +81,12 @@ npm run migrate        # apply pending SQL migrations
 npm run dev            # start the API with hot reload on PORT (3001)
 ```
 
-The npm scripts read `../../contbuild/.env` and drive the `db` service of the
-team compose. Stop the `api` container first (`docker compose -f
-contbuild/docker-compose.yml stop api` from the repository root) if you run
-`npm run dev`, since both use port 3001.
+The npm scripts read `../../contbuild/.env` and use `contbuild/docker-compose.yml`
+**alone**: `npm run db:up` starts its `db` service, published on
+`127.0.0.1:5432`, with its own `contbuild_db-data` volume. It is a different
+database from the full stack's (`cybersecurity_db-data`), and both can run at
+the same time. Here every value, secrets included, comes from
+`contbuild/.env`.
 
 Every route is served under the `/api` prefix. Verify the API is alive:
 
@@ -106,12 +130,12 @@ user request.
 | `POSTGRES_DB` | **yes** | — | Read by the `db` service of `contbuild/docker-compose.yml`. Must match `DATABASE_URL`. |
 | `FORTYTWO_CLIENT_ID` | no | — | UID of the 42 application. |
 | `FORTYTWO_CLIENT_SECRET` | no | — | Secret of the 42 application. |
-| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application, e.g. `http://localhost:3001/api/auth/42/callback`. |
+| `FORTYTWO_REDIRECT_URI` | no | — | Callback registered on the 42 application: `https://localhost:8443/api/auth/42/callback` behind the WAF, `http://localhost:3001/api/auth/42/callback` with `npm run dev`. |
 | `FORTYTWO_API_URL` | no | `https://api.intra.42.fr` | Base URL of the intra API (tests point it at a fake server). A trailing slash is dropped. |
-| `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `http://localhost:5173`. The OAuth callback redirects the browser to `FRONT_URL/home` or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login?…`). A trailing slash is dropped. |
+| `FRONT_URL` | no | empty | Base URL of the frontend, e.g. `https://localhost:8443` behind the WAF. The OAuth callback redirects the browser to `FRONT_URL/home`, `FRONT_URL/login/2fa` (account with 2FA on) or `FRONT_URL/login?oauth_error=…`. When empty the redirects are relative (`/home`, `/login/2fa`, `/login?…`). A trailing slash is dropped. |
 | `DEVICE_TOKEN` | no | — | Secret shared with the ESP32, sent in the `X-Device-Token` header. |
 | `BADGE_UID_SECRET` | no | — | Secret used to hash badge UIDs before they are stored. **At least 32 characters.** |
-| `BADGE_LOGIN_ALLOWED_IPS` | no | — | Comma-separated IP addresses (spaces allowed) of the kiosk PC, the only machines allowed to log in with a badge, e.g. `10.11.12.13`. IPv4-mapped IPv6 (`::ffff:10.11.12.13`) and IPv6 written in any form are normalised; anything that is not an IP address (host name, CIDR range) is rejected at startup. Empty: badge login answers `503`. In development, `127.0.0.1,::1`. |
+| `BADGE_LOGIN_ALLOWED_IPS` | no | — | Comma-separated IP addresses (spaces allowed) of the kiosk PC, the only machines allowed to log in with a badge, e.g. `10.11.12.13`. IPv4-mapped IPv6 (`::ffff:10.11.12.13`) and IPv6 written in any form are normalised; anything that is not an IP address (host name, CIDR range) is rejected at startup. Empty: badge login answers `503`. In development, `127.0.0.1,::1`. In the full stack, a browser on the machine running the project is seen as `172.30.0.1`, the gateway of the fixed subnet set in `cybersecurity/docker-compose.app.yml`. |
 
 An empty value (`KEY=`) is treated as unset for the optional keys above.
 `.env.example` leaves the secrets empty on purpose: a value committed to the
@@ -133,14 +157,15 @@ login additionally needs `BADGE_LOGIN_ALLOWED_IPS`: without it
 badge login is then disabled, never open to everyone. The rest of the API is
 unaffected.
 
-Real values live in `contbuild/.env`, which is git-ignored and shared by every
-service of the team compose. `contbuild/.env.example` sits beside it, is
-committed, and documents every key, including `SESSION_SECRET`, which
-Antonin's `app` service needs to start — copy it to `contbuild/.env` before the
-first `make` or `npm run db:up`, since Compose reads the database credentials
-from there and refuses to start without them. In the `api` container,
-`DATABASE_URL` is replaced so that it targets the `db` service instead of
-`localhost`.
+Real values live in `contbuild/.env`, which is git-ignored.
+`contbuild/.env.example` sits beside it, is committed, and documents every key —
+copy it to `contbuild/.env` before the first `make` or `npm run db:up`, since
+Compose reads the database credentials from there and refuses to start without
+them (keep a non-empty `POSTGRES_PASSWORD` there even for `make`, which ignores
+it). In the full stack, the secrets come from Vault instead (see
+[Run everything](#run-everything)) and `DATABASE_URL` is built at startup so
+that it targets the `db` service; with `contbuild/docker-compose.yml` alone, the
+`api` container replaces `DATABASE_URL` for the same reason.
 
 `credentials` is only advertised to the browser when `CORS_ORIGIN` lists
 explicit origins: `*` combined with credentials is rejected by every browser, so
@@ -180,7 +205,7 @@ noStore        Cache-Control: no-store on every /api response
 authenticate   Bearer key or session cookie → req.user (anonymous if neither)
   │
   ▼
-rate limits    per API key, then per route (login, register, badge login, messages)
+rate limits    per API key, then per route (login, register, badge login, 2FA, messages)
   │
   ▼
 routes/        matches the URL, runs validate({ body, params, query }) and the
@@ -226,10 +251,11 @@ src/
 └── utils/
     ├── AppError.js        # business errors carrying an HTTP status
     ├── apiKey.js          # API key generation, format check and hashing
-    └── ip.js              # IP address normalisation (badge kiosk allowlist)
+    ├── ip.js              # IP address normalisation (badge kiosk allowlist)
+    └── totp.js            # TOTP codes (RFC 6238) and base32, for the 2FA
 
 tests/
-├── unit/*.test.js         # node --test, no database: HTTP chain, env, cookies, keys, badge logic
+├── unit/*.test.js         # node --test, no database: HTTP chain, env, cookies, keys, badge logic, TOTP
 └── db/*.db.test.js        # node --test against a real Postgres, run with `npm run test:db`
 ```
 
@@ -330,7 +356,7 @@ The command is idempotent: run it as often as you like.
 Create the next numbered file and run the command again:
 
 ```sql
--- src/db/migrations/006_create_matches.sql
+-- src/db/migrations/007_create_matches.sql
 CREATE TABLE matches (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   player1_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -345,7 +371,7 @@ CREATE INDEX matches_player1_idx ON matches (player1_id);
 CREATE INDEX matches_player2_idx ON matches (player2_id);
 ```
 
-Use zero-padded numbers (`006`, not `6`): ordering is alphabetical, so `10_`
+Use zero-padded numbers (`007`, not `7`): ordering is alphabetical, so `10_`
 would otherwise sort before `2_`.
 
 The migrations in place today:
@@ -357,6 +383,7 @@ The migrations in place today:
 | `003_add_oauth_and_badges.sql` | nullable `password_hash` for 42-only accounts, `users.fortytwo_id`, `badges` |
 | `004_add_api_keys_friends_messages.sql` | `api_keys`, `friendships` (one row per pair, `pending` or `accepted`), `messages` |
 | `005_index_friendships_messages_api_keys.sql` | indexes on the foreign keys and lookup columns of the three tables above |
+| `006_add_two_factor.sql` | `users.totp_secret` (base32; `NULL` until the first setup and after 2FA is turned off), `users.totp_enabled` (default `false`), `users.totp_last_step` (last accepted code, against replays) |
 
 Every table that points at `users` does so with `ON DELETE CASCADE`: deleting an
 account removes its sessions, badge, API keys, friendships and messages.
@@ -377,10 +404,11 @@ Migration `002` adds a `NOT NULL` column without a default, so it fails if the
 npm run db:reset
 ```
 
-Removes only the `db` container and its `contbuild_db-data` volume, then
-recreates an empty database — Antonin's server and the API keep running. Then
-re-run `npm run migrate`, or restart the `api` service, which migrates on
-start. Because this is irreversible, `src/db/reset.js` enforces
+Removes only the `db` container of `contbuild/docker-compose.yml` and its
+`contbuild_db-data` volume — the development database — then recreates an empty
+one; nothing else is stopped. Then re-run `npm run migrate`. The full stack's
+database (`cybersecurity_db-data`) is **not** touched: `make fclean` resets that
+one. Because this is irreversible, `src/db/reset.js` enforces
 three independent guards and refuses with exit code 1 if any fails:
 
 1. `NODE_ENV` must be **explicitly** `development` or `test`. An unset variable
@@ -463,15 +491,15 @@ the logs.
 
 | Code | When |
 |---|---|
-| `200` | successful read or update; also a friend request that is accepted on the spot |
+| `200` | successful read or update; also a friend request that is accepted on the spot, and a login (password or badge) that still waits for the 2FA code (`{ "twoFactorRequired": true }`) |
 | `201` | resource created (account, API key, friend request, message); registration also sets a `Location` header |
-| `204` | successful delete or logout, no body |
-| `400` | validation failed (body, params or query), malformed JSON, a body sent without `Content-Type: application/json`, a friend request or message to yourself, or an unknown pagination cursor |
-| `401` | a route that needs a login called without valid credentials; wrong login credentials; a wrong device token or badge login token; or **any** `/api` request carrying an invalid `Authorization` header |
+| `204` | successful delete or logout, turning 2FA on or off, no body |
+| `400` | validation failed (body, params or query), malformed JSON, a body sent without `Content-Type: application/json`, a friend request or message to yourself, an unknown pagination cursor, or, for 2FA, a wrong code, `enable` before any `setup`, or `disable` while 2FA is off |
+| `401` | a route that needs a login called without valid credentials; wrong login credentials; a wrong device token or badge login token; a missing, expired or wrong 2FA login code; or **any** `/api` request carrying an invalid `Authorization` header |
 | `403` | authenticated, but not the account owner; a route reserved to a browser session called with an API key; writing to someone who is not your friend; or a badge login from an address outside `BADGE_LOGIN_ALLOWED_IPS` |
 | `404` | unknown route; missing user or API key; no pending friend request, or no friendship, with this user |
 | `405` | known path, unsupported method — carries an `Allow` header |
-| `409` | unique constraint violated, a friend request already pending or accepted, the 10-key limit reached, or a badge action is already in progress |
+| `409` | unique constraint violated, a friend request already pending or accepted, the 10-key limit reached, a badge action is already in progress, or 2FA already on (`setup`, `enable`) |
 | `413` | request body larger than 100 kB |
 | `429` | rate limit exceeded (see [Rate limiting](#rate-limiting)) |
 | `500` | unexpected server error |
@@ -545,8 +573,8 @@ What holds for every route, before the details of each one.
 
 ### Requests and responses
 
-- **Base path**: every route lives under `/api` (`http://localhost:3001/api` in
-  development, the WAF's address in production). The WebSocket is `/ws`, outside
+- **Base path**: every route lives under `/api` (`http://localhost:3001/api`
+  with `npm run dev`, `https://localhost:8443/api` behind the WAF with `make`). The WebSocket is `/ws`, outside
   `/api`.
 - **Bodies are JSON.** Send `Content-Type: application/json`; a body sent with
   any other type is not parsed and fails validation with `400`. Malformed JSON
@@ -572,7 +600,10 @@ A user appears in two projections, and never with its password hash:
 | Projection | Fields | Returned by |
 |---|---|---|
 | public | `id`, `username`, `createdAt` | `GET /users`, `GET /users/:id`, every `user` inside friends and messages responses |
-| private | `id`, `username`, `email`, `createdAt`, `updatedAt` | the account owner only: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PUT` / `PATCH /users/:id`, `POST /badge/login/confirm` |
+| private | `id`, `username`, `email`, `createdAt`, `updatedAt` | the account owner only: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /auth/session` (inside `user`), `PUT` / `PATCH /users/:id`, `POST /badge/login/confirm`, `POST /auth/2fa/verify` |
+
+The 2FA columns (`totp_secret`, `totp_enabled`, `totp_last_step`) are in
+neither projection: the account owner reads the 2FA state with `GET /auth/2fa`.
 
 ### Logging in: session cookie or API key
 
@@ -589,11 +620,15 @@ any route runs:
 
 Routes that need a login then answer `401` `Authentification requise` to an
 anonymous caller. Public routes (`GET /health`, `GET /users`, `GET /users/:id`,
-`POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, the 42 login,
-the kiosk and device routes) also work anonymously.
+`POST /auth/register`, `POST /auth/login`, `POST /auth/logout`,
+`GET /auth/session`, `POST /auth/2fa/verify`, the 42 login, the kiosk and
+device routes) also work anonymously.
 
 **The session.** `POST /auth/register`, `POST /auth/login`, the 42 callback and
-`POST /badge/login/confirm` open one and set the cookie:
+`POST /badge/login/confirm` open one and set the cookie. For an account with
+two-factor authentication on, the last three only start a **pending login**
+instead, and the session is opened by `POST /auth/2fa/verify` once the code is
+right (see [Two-factor authentication](#two-factor-authentication-totp)):
 
 | Property | Value |
 |---|---|
@@ -618,6 +653,9 @@ for scripts and third-party clients. Every route that does not touch the
 account's security accepts one; the few that do are reserved to the session.
 
 ### Getting a key
+
+The examples below target `npm run dev` (`http://localhost:3001`); behind the
+WAF, use `https://localhost:8443` and `curl -k` for the self-signed certificate.
 
 Keys are managed from a logged-in session (a key cannot create other keys, so a
 stolen one cannot spread). Create one, with a free name of 1 to 50 characters:
@@ -678,6 +716,7 @@ A valid key is refused with `403` (`Cette action exige une session`) on:
 | `POST /keys`, `GET /keys`, `DELETE /keys/:id` | a stolen key must not create more keys |
 | `POST /badge/pairing`, `GET /badge`, `DELETE /badge` | a stolen key must not link an attacker's badge to the account |
 | `DELETE /users/:id` | deleting the account is irreversible |
+| `GET /auth/2fa`, `POST /auth/2fa/setup`, `POST /auth/2fa/enable`, `POST /auth/2fa/disable` | a stolen key must not replace the 2FA secret or turn 2FA off |
 
 Routes that need a login answer `401` without credentials, before any `403`.
 The kiosk routes `POST /badge/login` and `POST /badge/login/confirm`, the device
@@ -715,6 +754,9 @@ ways at once:
 | `DELETE /users/:id` | validation → login (`401`) → session (`403`) → owner (`403`) |
 | `POST /keys`, `DELETE /keys/:id` | validation → login (`401`) → session (`403`) |
 | `GET /keys` | login (`401`) → session (`403`) |
+| `GET /auth/2fa`, `POST /auth/2fa/setup` | login (`401`) → session (`403`) → business rules |
+| `POST /auth/2fa/enable`, `POST /auth/2fa/disable` | login (`401`) → session (`403`) → validation (`400`) → business rules |
+| `POST /auth/2fa/verify` | validation (`400`) → pending login (`401`) → code (`401`) |
 | friends and messages | login (`401`) → validation (`400`) → business rules |
 
 So an invalid body on `PUT /users/:id` gets `400` even without credentials,
@@ -744,8 +786,10 @@ while an invalid body on `POST /friends/requests` without credentials gets
 Every route also answers `401` for an invalid key, `405` for a wrong method,
 and `429` once the key's limit is reached. Not listed, because they ignore the
 key or refuse it: the session-only routes above, `POST /auth/register`,
-`POST /auth/login` and `POST /auth/logout` (they work on the cookie), the 42
-login, and the kiosk and device routes. Details of each route are in the [API reference](#api-reference).
+`POST /auth/login` and `POST /auth/logout` (they work on the cookie),
+`GET /auth/session` (it answers `{ "user": null }` to a key) and
+`POST /auth/2fa/verify` (it works on the pending-login cookie), the 42 login,
+and the kiosk and device routes. Details of each route are in the [API reference](#api-reference).
 
 ```bash
 curl -H "Authorization: Bearer $API_KEY" \
@@ -903,6 +947,20 @@ answer never tells whether an account exists (an unknown account even pays the
 cost of a password hash check, so the response time does not tell either).
 Limited to 10 per minute per IP and identifier.
 
+**Account with two-factor authentication on.** Right credentials do **not**
+open a session. The answer is `200` with only:
+
+```json
+{ "twoFactorRequired": true }
+```
+
+and a `twofa_pending` cookie instead of `sid`. The client then asks the user for
+the 6-digit code and sends it to `POST /auth/2fa/verify`, which returns the
+private user and opens the session (see
+[Two-factor authentication](#two-factor-authentication-totp)). A client must
+therefore check for `twoFactorRequired` before treating the body as a user.
+Wrong credentials stay a plain `401`, without a pending login.
+
 ### `POST /auth/logout`
 
 Revokes the session of the `sid` cookie and clears the cookie. Returns `204`
@@ -925,6 +983,22 @@ Returns the caller's private user. Requires a valid session cookie or API key,
 }
 ```
 
+### `GET /auth/session`
+
+Tells the front, without an error, whether the browser holds a session. Public,
+always `200`:
+
+```json
+{ "user": { "id": "3f2b…", "username": "lucas", "email": "lucas@42.fr", "createdAt": "…", "updatedAt": "…" } }
+{ "user": null }
+```
+
+`user` is the private user when the `sid` cookie is valid, and `null` when the
+caller is anonymous, holds only a pending 2FA login, or is authenticated by an
+API key (this route is about the browser session). Unlike `GET /auth/me`, it
+never answers `401` to an anonymous caller, so a page can check the session
+silently on load; an invalid `Authorization` header is still refused with `401`.
+
 ### `GET /auth/42`
 
 Starts the 42 login. Sets a short-lived `oauth_state` cookie (`HttpOnly`,
@@ -941,6 +1015,9 @@ found or created, and the same `sid` session cookie as a password login is
 opened. The browser is then redirected (`302`) to the frontend:
 
 - success: `FRONT_URL/home`;
+- success on an account with 2FA on: `FRONT_URL/login/2fa`, **without** a
+  session: the callback sets the `twofa_pending` cookie instead of `sid`, and
+  the page at `/login/2fa` sends the code to `POST /auth/2fa/verify`;
 - failure: `FRONT_URL/login?oauth_error=<code>`.
 
 | `oauth_error` | Meaning |
@@ -954,6 +1031,87 @@ The callback always answers with a redirect and always clears the
 `oauth_state` cookie, even when the 42 login is not configured: raising an
 error there would log the request URL, which carries the one-time `code`. For
 the same reason the callback is excluded from the request logs.
+
+### Two-factor authentication (TOTP)
+
+An account can require a 6-digit code from an authenticator app (Google
+Authenticator, FreeOTP, Aegis…) **after** any first factor: password, 42 login
+or badge. The codes follow RFC 6238: HMAC-SHA1, 6 digits, 30-second steps,
+computed by `src/utils/totp.js` without any dependency.
+
+| Route | Auth | Body | Responses |
+|---|---|---|---|
+| `GET /auth/2fa` | session | — | `200` `{ "enabled": boolean }`, `401`, `403` |
+| `POST /auth/2fa/setup` | session | — | `200` `{ "secret", "otpauthUrl" }`, `401`, `403`, `409` |
+| `POST /auth/2fa/enable` | session | `{ "code" }` | `204`, `400`, `401`, `403`, `409` |
+| `POST /auth/2fa/disable` | session | `{ "code" }` | `204`, `400`, `401`, `403` |
+| `POST /auth/2fa/verify` | `twofa_pending` cookie | `{ "code" }` | `200` private user + `sid` cookie, `400`, `401` |
+
+`code` is a string of exactly 6 digits (`"042137"`, not `42137`): anything else
+is `400` `Données invalides dans body`. The four management routes are
+**session only** — a key gets `403`, so a stolen key can neither replace the
+secret nor turn 2FA off.
+
+**Turning it on** takes two steps, so that an account is never locked by a
+secret the user did not actually save:
+
+1. `POST /auth/2fa/setup` creates a new random secret (160 bits, base32) and
+   stores it, still **inactive**. The response holds the secret, to type by
+   hand, and the `otpauth://` link to show as a QR code:
+
+   ```json
+   {
+     "secret": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+     "otpauthUrl": "otpauth://totp/CLB%20Private%20Club%3Alucas?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=CLB%20Private%20Club"
+   }
+   ```
+
+   Calling it again before step 2 replaces the secret: only the last QR code
+   works. `409` `La double authentification est déjà activée` once 2FA is on.
+2. `POST /auth/2fa/enable` with the first code shown by the app proves the
+   secret was saved, and turns 2FA on (`204`). `400` `Code invalide` for a wrong
+   code, `400` `Commence par générer le QR code` without step 1, `409` if 2FA is
+   already on.
+
+**Logging in** with 2FA on:
+
+1. The first factor succeeds — `POST /auth/login`, the 42 callback or
+   `POST /badge/login/confirm`. No session is opened: the response is
+   `{ "twoFactorRequired": true }` (a redirect to `FRONT_URL/login/2fa` for 42),
+   with a `twofa_pending` cookie.
+2. `POST /auth/2fa/verify` with the code. Right code: `200` with the private
+   user, the `sid` session cookie, and the `twofa_pending` cookie cleared.
+
+| `twofa_pending` cookie | Value |
+|---|---|
+| value | 32 random bytes, hex, naming the pending login |
+| flags | `HttpOnly`, `SameSite=Lax`, `Path=/api/auth/2fa`; `Secure` unless `NODE_ENV` is `development` or `test` |
+| lifetime | 5 minutes (`Max-Age=300`), the lifetime of the pending login |
+
+The pending login grants **nothing** by itself: every route still treats the
+caller as anonymous, and `GET /auth/session` answers `{ "user": null }`. Its
+cookie is only sent to `/api/auth/2fa…`. `POST /auth/2fa/verify` answers:
+
+- `401` `Connexion expirée, recommence depuis le début` when the cookie is
+  missing, unknown, older than 5 minutes, already used, or after 5 wrong codes:
+  the user must go through the first factor again;
+- `401` `Code invalide` for a wrong code, which counts one failed attempt; the
+  5th failure drops the pending login.
+
+**Turning it off**: `POST /auth/2fa/disable` with a valid code (`204`) forgets
+the secret; the next login needs no code. `400` `Code invalide` for a wrong code,
+`400` `La double authentification n'est pas activée` when it is off.
+
+**Which codes are accepted.** The code of the current 30-second step, or of the
+step just before or after it, to absorb a clock drift of about 30 seconds. A
+code is accepted **once**: `totp_last_step` keeps the step of the last accepted
+code, and only a later step passes afterwards — for enable, verify and disable
+alike. The check and the update are one conditional `UPDATE`, so two requests
+racing with the same code cannot both pass. In practice, after using a code the
+user waits for the next one.
+
+`POST /auth/2fa/verify`, `/enable` and `/disable` are each limited to 10 requests
+per minute per IP (see [Rate limiting](#rate-limiting)).
 
 ### `POST /hello`
 
@@ -990,7 +1148,7 @@ All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
 |---|---|---|
 | `POST /badge/pairing` | session | `200` `{ "code" }`, `401`, `409` |
 | `POST /badge/login` | kiosk address | `200` `{ "code" }`, `403`, `409`, `429`, `503` |
-| `POST /badge/login/confirm` | kiosk address | `200` the authenticated user + session cookie, `400`, `401`, `403`, `503` |
+| `POST /badge/login/confirm` | kiosk address | `200` the authenticated user + session cookie (or `{ "twoFactorRequired": true }`), `400`, `401`, `403`, `503` |
 | `GET /badge` | session | `200` `{ "linked": boolean }`, `401` |
 | `DELETE /badge` | session | `204`, `401` |
 
@@ -1013,7 +1171,9 @@ All of them answer `503` when `DEVICE_TOKEN` or `BADGE_UID_SECRET` is missing
 - **`POST /badge/login/confirm`** takes `{ "token": "…" }`, the one-time token
   received over the WebSocket. It is valid for 10 seconds and can be used once;
   otherwise `401`. On success the response is the same private user as
-  `GET /auth/me`, with a `sid` session cookie.
+  `GET /auth/me`, with a `sid` session cookie — or, for an account with 2FA on,
+  `{ "twoFactorRequired": true }` with a `twofa_pending` cookie, exactly like
+  `POST /auth/login`: the badge is the first factor, the code the second.
 - **`GET /badge`** says whether the account has a badge; **`DELETE /badge`**
   unlinks it (idempotent).
 
@@ -1025,7 +1185,9 @@ The browser learns the outcome of a pairing or a login window here. The
 connection is served by the same HTTP server and port as the API.
 
 1. Call `POST /api/badge/pairing` or `POST /api/badge/login` and keep the `code`.
-2. Open `ws://<host>/ws` and send **one** JSON message: `{ "code": "<code>" }`.
+2. Open the WebSocket (`wss://localhost:8443/ws` behind the WAF,
+   `ws://localhost:3001/ws` with `npm run dev`) and send **one** JSON message:
+   `{ "code": "<code>" }`.
 3. The server replies with **one** message, then closes the connection:
    `{ "status": "<status>" }`, or `{ "status": "login-ready", "token": "<token>" }`.
 4. For a login, send the `token` to `POST /api/badge/login/confirm`.
@@ -1067,6 +1229,9 @@ IETF draft 6 headers). Beyond the limit the answer is `429`
 | `POST /auth/login` | 10 per minute | client IP **and** identifier |
 | `POST /auth/register` | 5 per minute | client IP |
 | `POST /badge/login` | 1 per 10 seconds | client IP |
+| `POST /auth/2fa/verify` | 10 per minute | client IP |
+| `POST /auth/2fa/enable` | 10 per minute | client IP |
+| `POST /auth/2fa/disable` | 10 per minute | client IP |
 | every `/api` request carrying a valid API key | 60 per minute | API key |
 | `POST /messages/:userId` | 30 per minute | authenticated user |
 
@@ -1235,7 +1400,7 @@ How a chat screen uses it:
 
 Four files and one line, always in this order. Copy `users` and rename.
 
-**1. Migration** — `src/db/migrations/006_create_matches.sql`, then
+**1. Migration** — `src/db/migrations/007_create_matches.sql`, then
 `npm run migrate`.
 
 **2. Service** — `src/services/matches.service.js`. Business rules and SQL. No
@@ -1303,8 +1468,9 @@ exercises the full HTTP chain: routing, validation, 404 and 405 handling, CORS
 and cache headers, and error translation. The other files cover what can be
 checked without SQL: environment parsing (`env`), cookie flags (`cookies`),
 API key format and hashing (`apiKey`), `Authorization` header rejection
-(`authenticate`), the login and registration limits (`rate-limit`), IP
-normalisation (`ip`), the badge state machine, the kiosk guard and the `503`s of
+(`authenticate`), the login, registration and 2FA limits (`rate-limit`), IP
+normalisation (`ip`), TOTP codes against the RFC 6238 test vectors (`totp`),
+the badge state machine, the kiosk guard and the `503`s of
 an unconfigured badge reader (`badge*`), and the `503` / redirect of an
 unconfigured 42 login (`oauth`).
 This is the property `npm test` (and only `npm test`) has: `npm run test:db`,
@@ -1319,8 +1485,10 @@ schema and its constraints (`schema`), registration, login, logout and `me`
 (`auth-*`), session lifecycle (`sessions`), users and ownership on `PUT`,
 `PATCH` and `DELETE` (`users*`), API keys and key authentication (`apiKeys*`,
 `authenticate`), friends and profile relation (`friends`), messages and their
-pagination (`messages`), the 42 login (`oauth-*`), the badge reader and its
-WebSocket (`badge*`), and graceful shutdown (`server-shutdown`). Run them with
+pagination (`messages`), two-factor authentication and `GET /auth/session`
+(`twoFactor-http`), the 42 login (`oauth-*`), the badge reader and its
+WebSocket (`badge*`) — the last two including their 2FA step — and graceful
+shutdown (`server-shutdown`). Run them with
 `npm run test:db` against a running database (`npm run db:up`, then
 `npm run migrate`). Each test creates its own accounts with random usernames
 and deletes them on exit, so the suite never needs an empty database and never
@@ -1340,7 +1508,11 @@ badge routes, API keys (creation from the session, use on `GET /auth/me` and
 `PUT /users/:id`, revocation) and the friends and messages flows.
 
 Pick the environment (`dev` or `docker`) from the selector at the top right;
-values live in `requests/http-client.env.json`. Secrets belong in
+values live in `requests/http-client.env.json`: `dev` targets `npm run dev`
+(`http://localhost:3001`), `docker` the full stack behind the WAF
+(`https://localhost:8443`). For `docker`, accept the self-signed certificate
+with `"SSLConfiguration": { "verifyHostCertificate": false }` in that
+environment of the private file below. Secrets belong in
 `requests/http-client.private.env.json`, which is git-ignored. The device
 requests use a `{{deviceToken}}` variable that must match `DEVICE_TOKEN`: define
 it there, for each environment:
@@ -1359,6 +1531,9 @@ file. Never put a real key in `api.http`.
 The friends and messages flow needs a second account: `{{friendId}}` is the id
 of another user, and `{{friendCookie}}` its session cookie (the "second
 account" requests register and log it in).
+
+The 2FA routes are not in the collection: `enable`, `disable` and `verify` need
+a fresh code from an authenticator app, so they cannot run unattended.
 
 `GET /auth/42` answers `302` to 42 and the request is marked `# @no-redirect`, so
 the redirect is not followed and its `Location` header can be inspected; run it
@@ -1404,12 +1579,28 @@ from this file: use a browser, or a tool such as `websocat`.
 - **No cap on WebSocket connections per IP.** `/ws` limits each socket's
   message size and lifetime, but not how many sockets one client opens; that
   belongs to the WAF.
-- **Badge state lives in memory.** Pending windows, results and login tokens
-  exist only inside one API process: run a single instance.
-- **The physical ESP32 cannot reach the API yet.** It needs the team's WAF in
-  place (it listens on 8443 while the firmware targets 3000) and the
-  `transcendence.local` name announced on the network. Until then, test the
-  device routes with `requests/api.http` or `curl`.
+- **Badge state and pending 2FA logins live in memory.** Pending windows,
+  results, login tokens and pending 2FA logins exist only inside one API
+  process: run a single instance. A restart drops the pending 2FA logins, and
+  those users type their password again.
+- **The badge reader goes through a USB bridge.** The ESP32 sends each scan
+  over USB to `webapp/badge-bridge/` on the kiosk PC, which calls `/api/hello`
+  and `/api/scan` with the device token. Without the bridge, test the device
+  routes with `requests/api.http` or `curl`.
+- **The 2FA secret is stored in clear.** `users.totp_secret` must be readable to
+  compute codes; anyone who can read the database can generate them. It is
+  never returned by the API.
+- **No recovery codes.** A user who loses their authenticator app cannot log in
+  any more, and turning 2FA off needs a code: an administrator has to clear the
+  2FA columns in the database.
+- **Turning 2FA on does not close the other sessions.** Sessions opened before
+  stay valid until they expire or are logged out.
+- **Guessing a 2FA code is slowed, not impossible.** A pending login allows 5
+  wrong codes, `POST /auth/2fa/verify` 10 requests per minute per IP, and
+  starting a new pending login needs the password again (10 logins per minute
+  per IP and identifier). That leaves about 10 guesses per minute per address
+  for someone who already knows the password, against 3 valid codes out of a
+  million at any time.
 - **Messages are polled.** There is no push: a client asks for new messages
   every few seconds with `GET /messages/:userId?after=<id>`, so they appear
   with a short delay.
