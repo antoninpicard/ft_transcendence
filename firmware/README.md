@@ -19,11 +19,36 @@ branch: `webapp/badge-bridge` (USB bridge on the kiosk PC), `webapp/backend` (AP
 - Arduino IDE (or PlatformIO) with the ESP32 board package installed
 - Library: `MFRC522_I2C`
 
+## Flashing with Arduino IDE
+
+1. In *File → Preferences → Additional boards manager URLs*, add
+   `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, then install
+   **esp32** (Espressif Systems) in *Tools → Board → Boards Manager*.
+2. Install the `MFRC522_I2C` library (*Sketch → Include Library → Manage Libraries*).
+3. Open `esp32_rfid.ino` (the IDE asks to move it into an `esp32_rfid` folder: accept).
+4. Plug the ESP32 in, select *Tools → Board → esp32 → ESP32 Dev Module* and its port in
+   *Tools → Port*.
+5. Click *Upload*. If it stays on `Connecting.....`, hold the **BOOT** button of the board.
+6. Check in *Tools → Serial Monitor* at 115200 bauds: `Badge reader ready` on reset, then
+   `UID read: <UID>` on every badge tap.
+
+### Finding the serial port
+
+- Windows: `COM3`, `COM4`... (the one that appears in *Tools → Port* when the board is plugged in)
+- Linux: `/dev/ttyUSB0`
+- macOS: run `ls /dev/cu.*` with the board unplugged, then plugged in: the new line is the
+  port, usually `/dev/cu.usbserial-XXXX` (use `cu.`, not `tty.`)
+
+No port at all: install the driver of the USB chip of the board (CP210x or CH340), or try
+another cable (some cables only charge).
+
 ## Setup
 
-1. Flash `esp32_rfid.ino` to the board.
-2. Leave it plugged into the kiosk PC and start the bridge there (see
-   `webapp/badge-bridge/.env.example` on the web app branch).
+1. Flash `esp32_rfid.ino` to the board (see above).
+2. **Close the Serial Monitor** (or Arduino IDE): only one program at a time can open the
+   serial port, and the bridge would fail with `Access denied` / `Resource busy`.
+3. Leave the board plugged into the kiosk PC and start the bridge there, with the port
+   found above in `SERIAL_PORT` (see `webapp/badge-bridge/.env.example` on the web app branch).
 
 The firmware holds no secret: no Wi-Fi password, no device token. The token lives on
 the kiosk PC, in the bridge's `.env`.
