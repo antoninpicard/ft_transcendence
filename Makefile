@@ -6,8 +6,8 @@ export COMPOSE_FILE = cybersecurity/docker-compose.yml:contbuild/docker-compose.
 # in cybersecurity/.env, the directory of the first file
 ENV_FILE = contbuild/.env
 export COMPOSE_ENV_FILES = $(ENV_FILE)
-# Secrets loaded into Vault by the bootstrap (app: infra/, backend: the API, db: Postgres)
-SECRETS = cybersecurity/vault/secrets/app.env cybersecurity/vault/secrets/backend.env cybersecurity/vault/secrets/db.env
+# Secrets loaded into Vault by the bootstrap (backend: the API, db: Postgres)
+SECRETS = cybersecurity/vault/secrets/backend.env cybersecurity/vault/secrets/db.env
 CERT = cybersecurity/waf/certs/server.crt
 KEY = cybersecurity/waf/certs/server.key
 

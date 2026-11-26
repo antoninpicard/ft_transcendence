@@ -1,18 +1,10 @@
 services:
   app:
+    # The app is the Vue front (webapp/frontend/server.js): it serves static files and
+    # relays /api to the API, and needs no secret. Least privilege: no Vault access at all
+    # (no AppRole, not on vault-net) and nothing from contbuild/.env.
     ports: !reset []
-    # The app gets its secrets from Vault only, never from contbuild/.env
     env_file: !reset []
-    command: ["node", "/vault/vault-exec.js", "npm", "start"]
-    environment:
-      VAULT_ADDR: http://vault:8200
-      VAULT_SECRET_PATH: secret/data/app/app
-    volumes:
-      - ./vault/wrapper/vault-exec.js:/vault/vault-exec.js:ro
-      - ./vault/run/app:/run/vault:ro
-    networks:
-      - default
-      - vault-net
 
   nginx:
     # In the integrated stack, the WAF protects the real app (not the whoami test backend)
