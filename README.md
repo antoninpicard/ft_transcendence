@@ -108,8 +108,12 @@ Vault cannot be unsealed after a restart.
   NODE_EXTRA_CA_CERTS=../../cybersecurity/waf/certs/server.crt npm start
   ```
 
-  Badge login is only accepted from `BADGE_LOGIN_ALLOWED_IPS` (`contbuild/.env`). A
-  browser on the machine that runs the stack is seen as `172.30.0.1`.
+  The kiosk PC is the machine that runs the stack: the WAF certificate is only valid for
+  `localhost` and `127.0.0.1`. Badge login is only accepted from `BADGE_LOGIN_ALLOWED_IPS`
+  (`contbuild/.env`). A browser on that machine is seen by the API as `172.30.0.1` on Linux
+  and Windows (WSL), and as `192.168.65.1` with Docker Desktop on macOS, where every client
+  gets that address, so the restriction no longer tells the kiosk from other machines. The
+  address seen by the API is in its logs (`make a_wish`).
 
 ### Other commands
 
