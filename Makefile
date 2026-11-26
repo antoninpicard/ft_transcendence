@@ -17,10 +17,29 @@ all: $(ENV_FILE) $(SECRETS) $(CERT)
 	bash cybersecurity/vault/scripts/bootstrap.sh
 	docker compose up --build -d
 	# nginx resolves the app address only at startup: if the app was recreated with a new IP,
-	# the WAF would answer 502. Restarting nginx makes it resolve the current address.
-	docker compose restart nginx
+	# the WAF would answer 502. Recreating nginx (not only restarting it) also attaches it to
+	# the current networks, in case a network was recreated.
+	docker compose up -d --force-recreate --no-deps nginx
+	# "Site ready" only once the WAF really answers (Docker healthcheck)
+	@bash cybersecurity/waf/scripts/wait-healthy.sh cybersecurity-nginx-1
 	@echo ""
 	@echo "Site ready: https://localhost:8443 (accept the self-signed certificate warning in the browser)"
+
+# WAF alone in front of the whoami test backend (cybersecurity/waf/tests/waf-test.sh).
+# It runs in a separate Compose project (waftest) with its own network, so the network of
+# the full stack is never touched. The WAF of the full stack is paused during the test
+# (both use port 8443) and started again afterwards, even if the test fails.
+waf-test: $(CERT)
+	@stack_waf=$$(docker ps -q -f name='^cybersecurity-nginx-1$$'); \
+	if [ -n "$$stack_waf" ]; then docker stop cybersecurity-nginx-1 >/dev/null; fi; \
+	export COMPOSE_PROJECT_NAME=waftest COMPOSE_FILE=cybersecurity/docker-compose.yml; unset COMPOSE_ENV_FILES; \
+	docker compose up -d nginx whoami \
+	  && bash cybersecurity/waf/scripts/wait-healthy.sh waftest-nginx-1 \
+	  && bash cybersecurity/waf/tests/waf-test.sh; status=$$?; \
+	docker compose down; \
+	if [ -n "$$stack_waf" ]; then docker start cybersecurity-nginx-1 >/dev/null \
+	  && bash cybersecurity/waf/scripts/wait-healthy.sh cybersecurity-nginx-1; fi; \
+	exit $$status
 
 $(ENV_FILE) $(SECRETS):
 	@echo "Missing $@: copy $@.example to $@ and fill in the values" && exit 1
@@ -66,4 +85,4 @@ fclean:
 re:
 	@make clean && make
 
-.PHONY: all a_wish stop clean fclean re
+.PHONY: all waf-test a_wish stop clean fclean re

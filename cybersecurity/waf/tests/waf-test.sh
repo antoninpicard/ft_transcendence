@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Tests du WAF : le trafic légitime doit passer, les attaques doivent être bloquées.
-# Usage (depuis cybersecurity/) : bash waf/tests/waf-test.sh
-# Prérequis : le WAF tourne (docker compose up -d), python3 et openssl installés.
+# Usage (depuis la racine du dépôt) : make waf-test
+#   make waf-test lance le WAF seul devant whoami dans un projet Compose séparé (waftest),
+#   met en pause le WAF de la stack complète pendant le test, puis le relance.
+#   Ne lance pas « docker compose up -d » dans cybersecurity/ pendant que la stack complète
+#   tourne : Compose recréerait son réseau (sous-réseau fixe) et casserait nginx.
+# Prérequis : python3 et openssl installés.
 set -u
 
 HOST="${WAF_HOST:-localhost}"

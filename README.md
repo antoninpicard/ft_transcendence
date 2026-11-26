@@ -119,7 +119,8 @@ Vault cannot be unsealed after a restart.
 | `make fclean` | Also remove the database volume and the built images (asks for confirmation). The Vault data volume is kept. |
 | `make re` | `clean` then `make` |
 | `make a_wish` | Show images, containers and the logs of every service |
-| `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app |
+| `make waf-test` | WAF alone in front of the `whoami` test backend, in a separate Compose project (`waftest`). The WAF of the full stack is paused during the test and started again afterwards |
+| `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app and API |
 | `bash cybersecurity/vault/tests/vault-isolation-test.sh` | Vault isolation tests (policies and network) |
 
 ### Notes on the Compose setup
@@ -294,7 +295,13 @@ for local development.
 
 **Tests:**
 
-- `waf/tests/waf-test.sh`: the WAF alone, with the `whoami` test backend.
+- `waf/tests/waf-test.sh` (run it with `make waf-test`): the WAF alone, with the
+  `whoami` test backend: legitimate traffic, attacks, rule `10001`, TLS, certificate
+  and audit log. Do not start it with `docker compose up -d` in `cybersecurity/` while
+  the full stack runs: Compose would recreate the stack's network (fixed subnet) and
+  nginx would lose the app.
+- `make` waits until nginx is healthy before printing "Site ready", and fails with its
+  last log lines if it does not start.
 - `waf/tests/waf-app-test.sh`: the integrated stack. Every answer is classified by
   who sent it (the WAF's HTML 403 page, or the app/API), so a 404 cannot pass for a
   success. It checks the Vue pages and assets, the `/api` and `/ws` routing, the API
