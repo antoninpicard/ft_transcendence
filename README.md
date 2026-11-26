@@ -46,14 +46,12 @@ newgrp docker
 
 ### First run
 
-1. **Configuration files.** Copy the four example files and fill in real values.
+1. **Configuration files.** Copy the three example files and fill in real values.
    They are ignored by Git, and `make` stops with a message if one is missing.
 
    ```sh
    cp contbuild/.env.example contbuild/.env
    # edit contbuild/.env: POSTGRES_USER, POSTGRES_DB, CORS_ORIGIN (https://localhost:8443), ...
-   cp cybersecurity/vault/secrets/app.env.example cybersecurity/vault/secrets/app.env
-   # edit cybersecurity/vault/secrets/app.env: SESSION_SECRET, DEVICE_TOKEN
    cp cybersecurity/vault/secrets/backend.env.example cybersecurity/vault/secrets/backend.env
    # edit cybersecurity/vault/secrets/backend.env: DEVICE_TOKEN, BADGE_UID_SECRET, FORTYTWO_CLIENT_SECRET
    cp cybersecurity/vault/secrets/db.env.example cybersecurity/vault/secrets/db.env
@@ -68,8 +66,8 @@ newgrp docker
      `contbuild/docker-compose.yml` requires it; it is only used by
      `npm run db:up` (local development of the API).
    - `cybersecurity/vault/secrets/*.env` are only read by the bootstrap script, which
-     loads them into Vault. The app, the API and the database get their secrets from
-     Vault. `DEVICE_TOKEN` must be the same in `app.env` and `backend.env`.
+     loads them into Vault. The API and the database get their secrets from Vault;
+     the `app` service (the Vue front) needs none.
 
 2. **TLS certificate:** nothing to do. If `cybersecurity/waf/certs/server.crt` is
    missing, `make` creates a self-signed certificate for `localhost` with `openssl`
@@ -121,7 +119,8 @@ Vault cannot be unsealed after a restart.
 | `make fclean` | Also remove the database volume and the built images (asks for confirmation). The Vault data volume is kept. |
 | `make re` | `clean` then `make` |
 | `make a_wish` | Show images, containers and the logs of every service |
-| `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app |
+| `make waf-test` | WAF alone in front of the `whoami` test backend, in a separate Compose project (`waftest`). The WAF of the full stack is paused during the test and started again afterwards |
+| `bash cybersecurity/waf/tests/waf-app-test.sh` | WAF tests against the running app and API |
 | `bash cybersecurity/vault/tests/vault-isolation-test.sh` | Vault isolation tests (policies and network) |
 
 ### Notes on the Compose setup
@@ -227,13 +226,14 @@ in the image, in the Compose files or in Git.
 ```
                                                      /api/..., /ws
 browser --HTTPS:8443--> nginx + ModSecurity (WAF) ----------------> api:3000 --> db:5432
-                                                 \                     \           |
-                                                  \ everything else     \ (vault-net)
-                                                   `--------> app:3000 --+--> vault:8200
+                                                 \                     |            |
+                                                  \ everything else    +-(vault-net)+--> vault:8200
+                                                   `--------> app:3000  (Vue front, no secret)
 ```
 
-The app, the API and the database each read their own secrets from Vault, on the
-internal `vault-net` network.
+The API and the database each read their own secrets from Vault, on the internal
+`vault-net` network. The app (the Vue front) needs no secret: it has no AppRole and is
+not on `vault-net`.
 
 The WAF port (8443) is the only published port. In the integrated stack, the ports of
 the API (3001) and of the database (5432) are removed (`ports: !reset []` in
@@ -269,17 +269,19 @@ for local development.
   threshold 2.
 - Isolated: Vault is only on the `vault-net` network (`internal: true`), its port is
   not published, and the WAF cannot even resolve its name.
-- One AppRole and one read-only policy per service:
+- One AppRole and one read-only policy per service that needs secrets:
 
   | AppRole | Used by | Can read |
   |---|---|---|
-  | `app` | app (`webapp/frontend/server.js`) | `secret/app/*` |
   | `backend` | API (`webapp/backend`) | `secret/backend/*`, `secret/db/*` (to build its `DATABASE_URL`) |
   | `db` | Postgres | `secret/db/*` |
+
+  The app (`webapp/frontend/server.js`) only serves the Vue front and relays `/api` to
+  the API: least privilege, it gets no AppRole and is not on `vault-net`.
 - `scripts/bootstrap.sh` is idempotent: it initializes Vault only once, unseals it,
   enables KV v2 and AppRole, writes the policies and roles, and loads
   `secrets/<service>.env` into `secret/<service>/app`.
-- The app and the API start through `wrapper/vault-exec.js`: it logs in with the
+- The API starts through `wrapper/vault-exec.js`: it logs in with the
   service's AppRole credentials (mounted read-only from `vault/run/<service>/`), reads
   its secrets (one or more paths in `VAULT_SECRET_PATH`) and starts the real command
   with them in its environment. The values never appear in `docker inspect` or in the
@@ -291,13 +293,26 @@ for local development.
   version (wget and sed) that exports `POSTGRES_PASSWORD`, then runs the normal
   entrypoint of the image.
 
-**Tests:** `waf/tests/waf-test.sh` (WAF alone, with the `whoami` test backend) and
-`waf/tests/waf-app-test.sh` (integrated app): legitimate traffic must pass, SQL
-injection, XSS, path traversal, command injection, scanner user agents and access to
-sensitive files must be blocked. `vault/tests/vault-isolation-test.sh` checks that the
-app reads its own secret (200) but gets 403 on the backend secret, on writes and on
-Vault administration paths; that the backend gets 403 on the app secret; and that the
-WAF cannot resolve Vault, which has no Internet access. It prints status codes only.
+**Tests:**
+
+- `waf/tests/waf-test.sh` (run it with `make waf-test`): the WAF alone, with the
+  `whoami` test backend: legitimate traffic, attacks, rule `10001`, TLS, certificate
+  and audit log. Do not start it with `docker compose up -d` in `cybersecurity/` while
+  the full stack runs: Compose would recreate the stack's network (fixed subnet) and
+  nginx would lose the app.
+- `make` waits until nginx is healthy before printing "Site ready", and fails with its
+  last log lines if it does not start.
+- `waf/tests/waf-app-test.sh`: the integrated stack. Every answer is classified by
+  who sent it (the WAF's HTML 403 page, or the app/API), so a 404 cannot pass for a
+  success. It checks the Vue pages and assets, the `/api` and `/ws` routing, the API
+  account and friends flow, free-text messages (exclusion `10010`), and 13 attacks
+  that must be blocked by the WAF (SQL injection, XSS, path traversal, command
+  injection, `/.env`, `/.git`, scanner user agent, unknown method).
+- `vault/tests/vault-isolation-test.sh`: the API (AppRole `backend`) reads its secret
+  and the database password but gets 403 on other paths, on writes and on Vault
+  administration; Postgres (AppRole `db`) reads its own secret and gets 403 on the
+  API secret; the WAF and the app cannot resolve Vault, the app has no AppRole
+  credentials, and Vault has no Internet access. It prints status codes only.
 
 **Known limitations:**
 
@@ -506,7 +521,8 @@ TODO (team): each member's contributions.
       would hide the error from a script. The header always wins, and an invalid one is
       a `401` everywhere.
 - **allefran**: Cybersecurity module (WAF configuration and tests, Vault setup,
-  bootstrap script, app integration through `vault-exec.js`, isolation tests,
+  bootstrap script, API and database integration through `vault-exec.js` and
+  `vault-exec.sh`, WAF routing to the API and targeted exclusion, isolation tests,
   single-command startup in the Makefile). Challenges:
   - The WAF logged attacks but did not block them: the Compose file still said
     `DetectionOnly`. Lesson: check the configuration Docker really uses
