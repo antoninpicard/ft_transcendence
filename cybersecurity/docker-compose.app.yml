@@ -17,6 +17,11 @@ services:
       - app
 
   api:
+    # Runs as the user who runs make (HOST_UID/HOST_GID, set by the Makefile): the AppRole
+    # files in vault/run/backend are 0600 and owned by that user, so the default "node"
+    # user (uid 1000) could not read them on a host whose user has another uid.
+    # The API writes no file, so any uid works.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     # Not published: in the integrated stack the API is only reachable through the WAF
     # (/api, /ws). Lucas's own setup (contbuild/docker-compose.yml alone) is unchanged.
     ports: !reset []
