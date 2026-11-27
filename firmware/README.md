@@ -47,8 +47,9 @@ another cable (some cables only charge).
 1. Flash `esp32_rfid.ino` to the board (see above).
 2. **Close the Serial Monitor** (or Arduino IDE): only one program at a time can open the
    serial port, and the bridge would fail with `Access denied` / `Resource busy`.
-3. Leave the board plugged into the kiosk PC and start the bridge there, with the port
-   found above in `SERIAL_PORT` (see `webapp/badge-bridge/.env.example` on the web app branch).
+3. Leave the board plugged into the kiosk PC, put the port found above in `SERIAL_PORT`
+   (see `webapp/badge-bridge/.env.example` on the web app branch) and run `make`: it starts
+   the bridge along with the site.
 
 The firmware holds no secret: no Wi-Fi password, no device token. The token lives on
 the kiosk PC, in the bridge's `.env`.
