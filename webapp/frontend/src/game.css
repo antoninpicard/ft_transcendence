@@ -13,13 +13,13 @@
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: rgba(255, 253, 247, 0.94);
-  box-shadow: 0 10px 26px rgba(75, 45, 32, 0.07);
+  background: var(--surface);
+  box-shadow: 0 10px 26px rgb(var(--shadow-rgb) / 0.07);
 }
 
 .game-page .panel-heading {
   margin: 0 0 14px;
-  color: var(--chocolate);
+  color: var(--text);
   font-size: 1.12rem;
 }
 
@@ -29,7 +29,7 @@
 
 .game-page .leaderboard-kicker {
   margin: -8px 0 14px;
-  color: var(--chocolate-soft);
+  color: var(--text-soft);
   font-size: 0.82rem;
 }
 
@@ -39,7 +39,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 0;
-  border-top: 1px solid #efe1c9;
+  border-top: 1px solid var(--line-soft);
   font-size: 0.9rem;
 }
 
@@ -48,12 +48,12 @@
 }
 
 .game-page .leader-rank {
-  color: var(--caramel);
+  color: var(--accent-strong);
   font-weight: 700;
 }
 
 .game-page .leader-score {
-  color: var(--chocolate-soft);
+  color: var(--text-soft);
   font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
@@ -63,7 +63,7 @@
   margin: 10px -8px -4px;
   padding: 10px 8px;
   border-radius: 9px;
-  background: #f7e8ce;
+  background: var(--surface-highlight);
 }
 
 .game-page .game-center {
@@ -72,20 +72,20 @@
   padding: 28px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: linear-gradient(160deg, #fffdf7, #f8ebd5);
-  box-shadow: 0 14px 34px rgba(75, 45, 32, 0.08);
+  background: linear-gradient(160deg, var(--gradient-from), var(--gradient-to));
+  box-shadow: 0 14px 34px rgb(var(--shadow-rgb) / 0.08);
   text-align: center;
 }
 
 .game-page .game-title {
   margin: 0;
-  color: var(--chocolate);
+  color: var(--text);
   font-size: clamp(1.7rem, 4vw, 2.5rem);
 }
 
 .game-page .sample-note {
   margin: 20px 0 0;
-  color: #94765d;
+  color: var(--text-muted);
   font-size: 0.78rem;
   text-align: center;
 }
@@ -108,17 +108,17 @@
   min-height: 290px;
   margin: 18px 0 12px;
   padding: 20px;
-  border: 1px dashed #dfc49c;
+  border: 1px dashed var(--line-strong);
   border-radius: 16px;
   background:
-    radial-gradient(circle, rgba(217, 154, 82, 0.18), transparent 65%),
-    #fff9ed;
+    radial-gradient(circle, var(--stage-glow), transparent 65%),
+    var(--surface-warm);
 }
 
 .scratch-page .game-picker .ticket-level {
   margin-top: 13px;
   padding-top: 12px;
-  border-top: 1px solid #efe1c9;
+  border-top: 1px solid var(--line-soft);
 }
 
 .scratch-page .ticket-level h3 {
@@ -126,12 +126,12 @@
   align-items: center;
   justify-content: space-between;
   margin: 0 0 8px;
-  color: var(--caramel);
+  color: var(--accent-strong);
   font-size: 1rem;
 }
 
 .scratch-page .ticket-level h3 span {
-  color: #94765d;
+  color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 400;
 }
@@ -144,8 +144,8 @@
   padding: 8px;
   border: 1px solid transparent;
   border-radius: 10px;
-  background: #fff9ed;
-  color: var(--chocolate);
+  background: var(--surface-warm);
+  color: var(--text);
   text-decoration: none;
   transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
@@ -153,7 +153,7 @@
 .scratch-page .ticket-level a:hover {
   transform: translateX(2px);
   border-color: var(--line);
-  background: var(--cream-deep);
+  background: var(--surface-soft);
 }
 
 .scratch-page .ticket-level a strong,
@@ -167,7 +167,7 @@
 
 .scratch-page .ticket-level a small {
   margin-top: 1px;
-  color: var(--chocolate-soft);
+  color: var(--text-soft);
   font-size: 0.7rem;
 }
 

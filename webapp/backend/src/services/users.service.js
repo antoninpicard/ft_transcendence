@@ -4,11 +4,12 @@ import { AppError } from '../utils/AppError.js';
 
 export const PUBLIC_COLUMNS = 'id, username, created_at AS "createdAt"';
 export const PRIVATE_COLUMNS =
-  'id, username, email, created_at AS "createdAt", updated_at AS "updatedAt"';
+  'id, username, email, theme, created_at AS "createdAt", updated_at AS "updatedAt"';
 
 const UPDATABLE = Object.freeze({
   username: 'username',
   email: 'email',
+  theme: 'theme',
 });
 
 export async function listUsers({ limit, offset }) {

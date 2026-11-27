@@ -159,7 +159,11 @@ TODO (team): work organization, tools, communication channels.
 
 - **Frontend:** **Vue 3** + Vue Router, built with **Vite** (`webapp/frontend/`), served
   by a small Express server (`webapp/frontend/server.js`, the `app` service). Styling
-  solution: hand-written CSS with design tokens (`src/style.css`, `src/game.css`).
+  solution: hand-written CSS with design tokens (`src/style.css`, `src/game.css`). Every
+  color is a token defined per theme in `src/themes.css`; `src/theme.js` lists the themes
+  and applies the chosen one (`data-theme` on `<html>`). `npm run check:contrast` in
+  `webapp/frontend` checks every theme against the WCAG 2.2 AA contrast guidelines
+  (4.5:1 for text, 3:1 for the borders and states of controls).
 - **Backend:** Node.js 22 with **Express 5** (`webapp/backend/`), see
   `webapp/backend/README.md`.
   - `argon2`: password hashing (argon2id, salted).
@@ -188,7 +192,7 @@ its sessions, badge, API keys, friendships, messages and tickets.
 
 | Table | Key fields | Relations |
 |---|---|---|
-| `users` | `id` uuid PK, `username` and `email` unique (case-insensitive), `password_hash` (null for 42 accounts), `fortytwo_id` unique, `totp_secret`, `totp_enabled`, `totp_last_step` | — |
+| `users` | `id` uuid PK, `username` and `email` unique (case-insensitive), `password_hash` (null for 42 accounts), `fortytwo_id` unique, `totp_secret`, `totp_enabled`, `totp_last_step`, `theme` | — |
 | `sessions` | `id` uuid PK, `token_hash` unique, `expires_at` | `user_id` → `users` |
 | `badges` | `id` uuid PK, `uid_hash` unique (HMAC of the badge UID) | `user_id` → `users`, one badge per user |
 | `api_keys` | `id` uuid PK, `name`, `key_hash` unique, `prefix`, `last_used_at` | `user_id` → `users` |
@@ -214,6 +218,7 @@ its sessions, badge, API keys, friendships, messages and tickets.
 | Real-time feedback | anpicard, lucnavar | WebSocket `/ws` bound to a pending badge action by its random code. |
 | Badge reader | anpicard | ESP32 + MFRC522 over USB (`firmware/`), USB bridge on the kiosk PC (`webapp/badge-bridge`), `/api/hello` and `/api/scan` protected by `DEVICE_TOKEN`. |
 | Scratch-ticket game | tmarion | Ticket choice, key sequence to scratch, revealed prize and live leaderboard (`/game`). The server draws the sequence, checks it and pays the points (`/api/game`). |
+| Color themes | — | Five themes chosen in Settings (Automatique, Biscuit, Chocolat noir, Menthe, Casino) and a light/dark switch in the header; saved on the account (`PATCH /api/users/:id`), applied before the first paint. |
 | Profiles and user directory | lucnavar | Public profile of any user and paginated list of accounts; the owner edits their username and email (`/api/users`, `/api/users/:id`). A profile shows how the viewer stands with that user (`relation`). |
 | Friends | lucnavar | Send, accept, decline or cancel a friend request, remove a friend, list friends and pending requests (`/api/friends`). |
 | Direct messages | lucnavar | Messages between friends, conversation list, history paginated by cursor (`/api/messages`). |

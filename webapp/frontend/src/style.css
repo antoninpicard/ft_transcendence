@@ -1,15 +1,5 @@
-/* Same look as Théo's front (CLB Private Club): cream, cookie and chocolate colors */
-:root {
-	color-scheme: light;
-	--cream: #fff8e9;
-	--cream-deep: #f4e5c9;
-	--cookie: #d99a52;
-	--caramel: #a96532;
-	--chocolate: #4b2d20;
-	--chocolate-soft: #76513b;
-	--line: #e6cfaa;
-	--danger: #a63f32;
-}
+/* Same look as Théo's front (CLB Private Club). Colors are tokens defined in themes.css:
+   never write a color here, use a var(--…) so that every theme applies. */
 
 * {
 	box-sizing: border-box;
@@ -20,10 +10,10 @@ body {
 	margin: 0;
 	padding: 28px clamp(14px, 3vw, 40px) 48px;
 	background:
-		radial-gradient(circle at 12% 18%, rgba(217, 154, 82, 0.13) 0 3px, transparent 4px),
-		radial-gradient(circle at 88% 78%, rgba(169, 101, 50, 0.12) 0 4px, transparent 5px),
-		var(--cream);
-	color: var(--chocolate);
+		radial-gradient(circle at 12% 18%, var(--bg-dot-1) 0 3px, transparent 4px),
+		radial-gradient(circle at 88% 78%, var(--bg-dot-2) 0 4px, transparent 5px),
+		var(--bg);
+	color: var(--text);
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 16px;
 	line-height: 1.6;
@@ -31,7 +21,7 @@ body {
 
 label {
 	margin-top: 4px;
-	color: var(--chocolate-soft);
+	color: var(--text-soft);
 	font-weight: 700;
 }
 
@@ -39,43 +29,43 @@ input {
 	width: 100%;
 	min-height: 46px;
 	padding: 10px 13px;
-	border: 1px solid var(--line);
+	border: 1px solid var(--input-border);
 	border-radius: 9px;
 	outline: none;
-	background: #fffdf8;
-	color: var(--chocolate);
+	background: var(--surface-solid);
+	color: var(--text);
 	font: inherit;
 	transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 input:focus {
-	border-color: var(--caramel);
-	box-shadow: 0 0 0 3px rgba(217, 154, 82, 0.2);
+	border-color: var(--accent-strong);
+	box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 button {
 	min-height: 44px;
 	margin-top: 12px;
 	padding: 10px 18px;
-	border: 1px solid #955629;
+	border: 1px solid var(--accent-border);
 	border-radius: 10px;
-	background: var(--cookie);
-	box-shadow: 0 3px 0 #955629;
-	color: #fffdf8;
+	background: var(--accent);
+	box-shadow: 0 3px 0 var(--accent-border);
+	color: var(--on-accent);
 	cursor: pointer;
 	font: 700 0.98rem/1.3 Georgia, "Times New Roman", serif;
 	transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 button:hover {
-	background: var(--caramel);
+	background: var(--accent-hover);
 	transform: translateY(-1px);
-	box-shadow: 0 4px 0 #824923;
+	box-shadow: 0 4px 0 var(--accent-shadow);
 }
 
 button:active {
 	transform: translateY(2px);
-	box-shadow: 0 1px 0 #824923;
+	box-shadow: 0 1px 0 var(--accent-shadow);
 }
 
 button:disabled {
@@ -85,14 +75,14 @@ button:disabled {
 }
 
 a {
-	color: var(--caramel);
+	color: var(--accent-strong);
 	font-weight: 700;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 3px;
 }
 
 a:hover {
-	color: var(--chocolate);
+	color: var(--text);
 }
 
 .app-shell {
@@ -109,11 +99,11 @@ a:hover {
 	padding: 14px 20px;
 	border: 1px solid var(--line);
 	border-radius: 15px;
-	background: rgba(255, 253, 247, 0.92);
+	background: var(--surface);
 }
 
 .site-brand {
-	color: var(--chocolate);
+	color: var(--text);
 	font-size: 1.25rem;
 	text-decoration: none;
 }
@@ -129,6 +119,12 @@ a:hover {
 	min-height: 36px;
 	margin: 0;
 	padding: 6px 12px;
+}
+
+.site-header nav .theme-toggle {
+	min-width: 40px;
+	padding: 6px 8px;
+	line-height: 1;
 }
 
 .site-footer {
@@ -148,8 +144,8 @@ a:hover {
 	padding: clamp(20px, 4vw, 34px);
 	border: 1px solid var(--line);
 	border-radius: 18px;
-	background: rgba(255, 253, 247, 0.94);
-	box-shadow: 0 12px 30px rgba(75, 45, 32, 0.09);
+	background: var(--surface);
+	box-shadow: 0 12px 30px rgb(var(--shadow-rgb) / 0.09);
 }
 
 .content-panel {
@@ -167,12 +163,12 @@ a:hover {
 }
 
 .content-panel h2 {
-	color: var(--caramel);
+	color: var(--accent-strong);
 }
 
 .content-panel p,
 .content-panel li {
-	color: var(--chocolate-soft);
+	color: var(--text-soft);
 }
 
 .auth-page form {
@@ -190,24 +186,25 @@ a:hover {
 }
 
 .secondary-button {
-	background: var(--chocolate-soft);
-	border-color: var(--chocolate);
-	box-shadow: 0 3px 0 var(--chocolate);
+	background: var(--secondary);
+	border-color: var(--secondary-border);
+	box-shadow: 0 3px 0 var(--secondary-border);
+	color: var(--on-secondary);
 }
 
 .secondary-button:hover {
-	background: var(--chocolate);
+	background: var(--secondary-hover);
 }
 
 .form-message {
 	padding: 10px 14px;
 	border-radius: 9px;
-	background: var(--cream-deep);
-	color: var(--chocolate-soft);
+	background: var(--surface-soft);
+	color: var(--text-soft);
 }
 
 .warning-message {
-	border-left: 4px solid var(--caramel);
+	border-left: 4px solid var(--accent-strong);
 }
 
 .error-message {
@@ -224,6 +221,7 @@ a:hover {
 	justify-self: center;
 	border: 1px solid var(--line);
 	border-radius: 9px;
+	/* Stays white in every theme: a QR code is only scanned dark on light */
 	background: #ffffff;
 }
 
@@ -241,17 +239,17 @@ a:hover {
 .action-link {
 	display: inline-block;
 	padding: 11px 16px;
-	border: 1px solid #955629;
+	border: 1px solid var(--accent-border);
 	border-radius: 10px;
-	background: var(--cookie);
-	box-shadow: 0 3px 0 #955629;
-	color: #fffdf8;
+	background: var(--accent);
+	box-shadow: 0 3px 0 var(--accent-border);
+	color: var(--on-accent);
 	text-decoration: none;
 }
 
 .action-link:hover {
-	background: var(--caramel);
-	color: #fffdf8;
+	background: var(--accent-hover);
+	color: var(--on-accent);
 }
 
 .home {
@@ -261,7 +259,7 @@ a:hover {
 
 .home-kicker {
 	margin: 0;
-	color: var(--caramel);
+	color: var(--accent-strong);
 	font-size: 0.85rem;
 	font-weight: 700;
 	letter-spacing: 0.3em;
@@ -282,9 +280,9 @@ a:hover {
 	padding: 22px;
 	border: 1px solid var(--line);
 	border-radius: 18px;
-	background: rgba(255, 253, 247, 0.94);
-	box-shadow: 0 12px 30px rgba(75, 45, 32, 0.09);
-	color: var(--chocolate);
+	background: var(--surface);
+	box-shadow: 0 12px 30px rgb(var(--shadow-rgb) / 0.09);
+	color: var(--text);
 	font-weight: 400;
 	text-decoration: none;
 	transition: transform 150ms ease, box-shadow 150ms ease;
@@ -292,18 +290,18 @@ a:hover {
 
 a.home-card:hover {
 	transform: translateY(-4px) rotate(-0.6deg);
-	box-shadow: 0 16px 34px rgba(75, 45, 32, 0.14);
-	color: var(--chocolate);
+	box-shadow: 0 16px 34px rgb(var(--shadow-rgb) / 0.14);
+	color: var(--text);
 }
 
 .home-card h2 {
 	margin: 0;
-	color: var(--caramel);
+	color: var(--accent-strong);
 }
 
 .home-card p {
 	margin: 0;
-	color: var(--chocolate-soft);
+	color: var(--text-soft);
 }
 
 .home-card .action-link {
@@ -317,8 +315,8 @@ a.home-card:hover {
 	gap: 24px;
 	margin-bottom: 20px;
 	padding: clamp(24px, 5vw, 40px);
-	border: 2px solid var(--cookie);
-	background: linear-gradient(150deg, #fffdf7, #f4dcb4);
+	border: 2px solid var(--accent);
+	background: linear-gradient(150deg, var(--gradient-from), var(--hero-to));
 }
 
 .home-card-play .home-card-icon {
@@ -333,7 +331,7 @@ a.home-card:hover {
 }
 
 .home-card-play h2 {
-	color: var(--chocolate);
+	color: var(--text);
 	font-size: clamp(1.6rem, 4vw, 2.3rem);
 }
 
@@ -363,13 +361,13 @@ a.home-card:hover {
 
 .home-quote blockquote {
 	margin: 0;
-	color: var(--chocolate);
+	color: var(--text);
 	font-size: 1.1rem;
 	font-style: italic;
 }
 
 .home-quote figcaption {
-	color: var(--caramel);
+	color: var(--accent-strong);
 	font-weight: 700;
 }
 
@@ -389,12 +387,12 @@ a.home-card:hover {
 .status-list li {
 	padding: 6px 10px;
 	border-radius: 8px;
-	background: var(--cream-deep);
+	background: var(--surface-soft);
 }
 
 .status-list .status-on {
-	background: #e1efd9;
-	color: #365b32;
+	background: var(--success-bg);
+	color: var(--success-text);
 }
 
 .status-list .status-off {

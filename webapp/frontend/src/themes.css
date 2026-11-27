@@ -1,0 +1,194 @@
+/* Color themes. Every color of the site is one of these tokens: a theme only redefines them.
+   The theme is set as data-theme on <html> by src/theme.js ("auto" picks biscuit or chocolat
+   from the system setting). Biscuit, the original look, is also the fallback of :root.
+   To add a theme: copy a block below, then add it to THEMES in src/theme.js.
+   Every theme must pass `npm run check:contrast` (WCAG 2.2 AA: 4.5:1 for text, 3:1 for
+   the borders and states of controls); run it after changing any color. */
+
+:root,
+[data-theme="biscuit"] {
+	color-scheme: light;
+	--bg: #fff8e9;
+	--bg-dot-1: rgba(217, 154, 82, 0.13);
+	--bg-dot-2: rgba(169, 101, 50, 0.12);
+	--surface: rgba(255, 253, 247, 0.94);
+	--surface-solid: #fffdf8;
+	--surface-soft: #f4e5c9;
+	--surface-warm: #fff9ed;
+	--surface-highlight: #f7e8ce;
+	--gradient-from: #fffdf7;
+	--gradient-to: #f8ebd5;
+	--hero-to: #f4dcb4;
+	--stage-glow: rgba(217, 154, 82, 0.18);
+	--text: #4b2d20;
+	--text-soft: #76513b;
+	--text-muted: #876c55;
+	--accent: #d99a52;
+	--accent-strong: #95592c;
+	--accent-border: #955629;
+	--accent-shadow: #824923;
+	--on-accent: #4b2d20;
+	--line: #e6cfaa;
+	--line-soft: #efe1c9;
+	--line-strong: #dfc49c;
+	--focus-ring: rgba(217, 154, 82, 0.2);
+	--shadow-rgb: 75 45 32;
+	--danger: #a63f32;
+	--success-bg: #e1efd9;
+	--success-text: #365b32;
+	--success-border: #64865c;
+	--key-bg: #fffaf0;
+	--key-text: #5d4938;
+	--key-border: #c9b99e;
+	--key-next-bg: #f7dfb9;
+	--key-next-border: #b9783f;
+	--prize-bg: #fff4d9;
+	--prize-text: #7b2f18;
+	--secondary: #76513b;
+	--secondary-border: #4b2d20;
+	--secondary-hover: #4b2d20;
+	--on-secondary: #fffdf8;
+	--accent-hover: #e0ae73;
+	--input-border: #b98736;
+}
+
+/* Dark: dark chocolate with caramel */
+[data-theme="chocolat"] {
+	color-scheme: dark;
+	--bg: #1c130f;
+	--bg-dot-1: rgba(217, 154, 82, 0.09);
+	--bg-dot-2: rgba(232, 176, 111, 0.07);
+	--surface: rgba(41, 28, 21, 0.94);
+	--surface-solid: #2b1e17;
+	--surface-soft: #3a281e;
+	--surface-warm: #33231b;
+	--surface-highlight: #4a3326;
+	--gradient-from: #2e2019;
+	--gradient-to: #24180f;
+	--hero-to: #4a3020;
+	--stage-glow: rgba(217, 154, 82, 0.14);
+	--text: #f6e7d3;
+	--text-soft: #d8bfa5;
+	--text-muted: #a88b72;
+	--accent: #d99a52;
+	--accent-strong: #e8b06f;
+	--accent-border: #8a4f25;
+	--accent-shadow: #6e3d1b;
+	--on-accent: #1c130f;
+	--line: #4d3729;
+	--line-soft: #3d2b20;
+	--line-strong: #5c4230;
+	--focus-ring: rgba(232, 176, 111, 0.3);
+	--shadow-rgb: 0 0 0;
+	--danger: #f08a7a;
+	--success-bg: #23361f;
+	--success-text: #b5d9a8;
+	--success-border: #6f9a62;
+	--key-bg: #2b1e17;
+	--key-text: #f0dcc4;
+	--key-border: #5c4230;
+	--key-next-bg: #5a3a1f;
+	--key-next-border: #e8b06f;
+	--prize-bg: #3a281e;
+	--prize-text: #ffcf8a;
+	--secondary: #4a3326;
+	--secondary-border: #6b4b37;
+	--secondary-hover: #5a3f30;
+	--on-secondary: #f6e7d3;
+	--accent-hover: #e8b06f;
+	--input-border: #8c644b;
+}
+
+/* Light: fresh mint */
+[data-theme="menthe"] {
+	color-scheme: light;
+	--bg: #f1f8f3;
+	--bg-dot-1: rgba(63, 154, 110, 0.12);
+	--bg-dot-2: rgba(44, 117, 82, 0.1);
+	--surface: rgba(252, 255, 253, 0.94);
+	--surface-solid: #fcfffd;
+	--surface-soft: #dcefe3;
+	--surface-warm: #eef7f1;
+	--surface-highlight: #d5ecdd;
+	--gradient-from: #fcfffd;
+	--gradient-to: #e3f2e8;
+	--hero-to: #c8e6d3;
+	--stage-glow: rgba(63, 154, 110, 0.16);
+	--text: #1f3a2e;
+	--text-soft: #3f6353;
+	--text-muted: #587567;
+	--accent: #2e7d57;
+	--accent-strong: #236646;
+	--accent-border: #1d563c;
+	--accent-shadow: #15412d;
+	--on-accent: #ffffff;
+	--line: #c3dfcd;
+	--line-soft: #dcece2;
+	--line-strong: #a9d1b8;
+	--focus-ring: rgba(63, 154, 110, 0.22);
+	--shadow-rgb: 31 58 46;
+	--danger: #b3402f;
+	--success-bg: #d7f0e0;
+	--success-text: #1d5a3a;
+	--success-border: #3f9a6e;
+	--key-bg: #fbfffc;
+	--key-text: #2f4d40;
+	--key-border: #b5d3c1;
+	--key-next-bg: #cdebd9;
+	--key-next-border: #3f9a6e;
+	--prize-bg: #e8f7ee;
+	--prize-text: #1d5a3a;
+	--secondary: #3f6353;
+	--secondary-border: #1f3a2e;
+	--secondary-hover: #1f3a2e;
+	--on-secondary: #ffffff;
+	--accent-hover: #236646;
+	--input-border: #55a070;
+}
+
+/* Dark: green felt and gold */
+[data-theme="casino"] {
+	color-scheme: dark;
+	--bg: #0e2a1f;
+	--bg-dot-1: rgba(212, 175, 55, 0.1);
+	--bg-dot-2: rgba(240, 207, 94, 0.07);
+	--surface: rgba(18, 52, 38, 0.94);
+	--surface-solid: #12352a;
+	--surface-soft: #1b4434;
+	--surface-warm: #153b2d;
+	--surface-highlight: #23523f;
+	--gradient-from: #174433;
+	--gradient-to: #0f3024;
+	--hero-to: #2b5a3f;
+	--stage-glow: rgba(212, 175, 55, 0.16);
+	--text: #f4ecd2;
+	--text-soft: #d4c79c;
+	--text-muted: #a3a07e;
+	--accent: #d4af37;
+	--accent-strong: #f0cf5e;
+	--accent-border: #8f7420;
+	--accent-shadow: #6d5715;
+	--on-accent: #1a1405;
+	--line: #2f5e49;
+	--line-soft: #224a39;
+	--line-strong: #3e7059;
+	--focus-ring: rgba(212, 175, 55, 0.3);
+	--shadow-rgb: 0 0 0;
+	--danger: #ff8f80;
+	--success-bg: #1f4a2c;
+	--success-text: #b9e6b0;
+	--success-border: #6dbb72;
+	--key-bg: #12352a;
+	--key-text: #f4ecd2;
+	--key-border: #3e7059;
+	--key-next-bg: #5b4b17;
+	--key-next-border: #f0cf5e;
+	--prize-bg: #1b4434;
+	--prize-text: #f0cf5e;
+	--secondary: #23523f;
+	--secondary-border: #3e7059;
+	--secondary-hover: #2b6049;
+	--on-secondary: #f4ecd2;
+	--accent-hover: #f0cf5e;
+	--input-border: #438769;
+}

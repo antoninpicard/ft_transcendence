@@ -386,6 +386,7 @@ The migrations in place today:
 | `006_add_two_factor.sql` | `users.totp_secret` (base32; `NULL` until the first setup and after 2FA is turned off), `users.totp_enabled` (default `false`), `users.totp_last_step` (last accepted code, against replays) |
 | `007_create_ticket_plays.sql` | `ticket_plays` (one row per scratch ticket opened, with its points), indexed on `user_id` |
 | `008_server_side_tickets.sql` | `ticket_plays.sequence` (keys drawn by the server), `ticket_plays.revealed_at` (`NULL` while the ticket is in progress), `played_at` renamed `created_at`, and a unique partial index: one ticket in progress per player |
+| `009_add_user_theme.sql` | `users.theme` (`auto` by default): the color theme of the front chosen by the user |
 
 Every table that points at `users` does so with `ON DELETE CASCADE`: deleting an
 account removes its sessions, badge, API keys, friendships, messages and ticket plays.
@@ -602,7 +603,7 @@ A user appears in two projections, and never with its password hash:
 | Projection | Fields | Returned by |
 |---|---|---|
 | public | `id`, `username`, `createdAt` | `GET /users`, `GET /users/:id`, every `user` inside friends and messages responses |
-| private | `id`, `username`, `email`, `createdAt`, `updatedAt` | the account owner only: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /auth/session` (inside `user`), `PUT` / `PATCH /users/:id`, `POST /badge/login/confirm`, `POST /auth/2fa/verify` |
+| private | `id`, `username`, `email`, `theme`, `createdAt`, `updatedAt` | the account owner only: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /auth/session` (inside `user`), `PUT` / `PATCH /users/:id`, `POST /badge/login/confirm`, `POST /auth/2fa/verify` |
 
 The 2FA columns (`totp_secret`, `totp_enabled`, `totp_last_step`) are in
 neither projection: the account owner reads the 2FA state with `GET /auth/2fa`.
@@ -905,7 +906,11 @@ password cannot be changed here.
 ### `PATCH /users/:id`
 
 Partial update — send only the fields you want to change, with the same rules
-as `PUT`. Same access rules and statuses as `PUT`; returns the updated private
+as `PUT`. `PATCH` also accepts `theme`, the color theme of the front: an id of 1 to 30
+lowercase letters and dashes, starting with a letter (`400` otherwise). The list of
+themes belongs to the front (`webapp/frontend/src/theme.js`), which shows its default
+theme for an id it does not know: adding a theme needs no API change. New accounts
+have `auto` (follow the system light/dark setting). `PUT` leaves the theme unchanged. Same access rules and statuses as `PUT`; returns the updated private
 user. An empty body `{}` changes nothing and returns the current private user.
 
 ### `DELETE /users/:id`

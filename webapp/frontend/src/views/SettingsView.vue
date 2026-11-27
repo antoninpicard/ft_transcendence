@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { request, startBadgeAction } from "../api.js";
 import TwoFactorSettings from "../components/TwoFactorSettings.vue";
+import ThemeSettings from "../components/ThemeSettings.vue";
 
 const linked = ref(false);
 const badgeStatus = ref("Chargement...");
@@ -65,6 +66,8 @@ onUnmounted(() => pairingSocket?.close());
 <template>
 	<section class="content-panel">
 		<h1>Paramètres</h1>
+		<ThemeSettings />
+
 		<h2>Badge NFC</h2>
 		<p class="form-message" role="status" aria-live="polite">{{ badgeStatus }}</p>
 		<div class="actions">

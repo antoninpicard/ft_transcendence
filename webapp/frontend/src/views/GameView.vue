@@ -126,7 +126,7 @@ const feedback = computed(() => {
 
 function handleKeydown(event) {
   if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
-  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, button, [contenteditable="true"]')) return;
+  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (game.press(event.key.toUpperCase())) event.preventDefault();
 }
 
@@ -166,8 +166,8 @@ onUnmounted(() => {
   width: min(100%, 330px);
   overflow: hidden;
   border-radius: 13px;
-  background: #f5e8ce;
-  box-shadow: 0 13px 22px rgba(75, 45, 32, .24);
+  background: var(--surface-soft);
+  box-shadow: 0 13px 22px rgb(var(--shadow-rgb) / 0.24);
 }
 .ticket-art {
   display: block;
@@ -198,8 +198,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  color: #7b2f18;
-  background: #fff4d9;
+  color: var(--prize-text);
+  background: var(--prize-bg);
   opacity: 1;
 }
 .revealed-prize strong {
@@ -226,7 +226,7 @@ onUnmounted(() => {
 }
 .qte-instruction {
   margin: 0 0 10px;
-  color: var(--ink, #49372c);
+  color: var(--text);
   font-weight: 700;
 }
 .qte-sequence {
@@ -240,42 +240,42 @@ onUnmounted(() => {
   width: 38px;
   height: 42px;
   place-items: center;
-  border: 2px solid #c9b99e;
+  border: 2px solid var(--key-border);
   border-radius: 7px;
-  background: #fffaf0;
-  color: #5d4938;
+  background: var(--key-bg);
+  color: var(--key-text);
   font-size: 1rem;
   font-weight: 900;
-  box-shadow: 0 3px 0 #c9b99e;
+  box-shadow: 0 3px 0 var(--key-border);
 }
 .qte-key.is-next {
-  border-color: var(--caramel, #b9783f);
-  background: #f7dfb9;
+  border-color: var(--key-next-border);
+  background: var(--key-next-bg);
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 #b9783f;
+  box-shadow: 0 5px 0 var(--key-next-border);
 }
 .qte-key.is-done {
-  border-color: #64865c;
-  background: #e1efd9;
-  color: #365b32;
-  box-shadow: 0 2px 0 #64865c;
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
+  box-shadow: 0 2px 0 var(--success-border);
 }
 .qte-feedback {
   margin: 12px 0 0;
-  color: #64865c;
+  color: var(--success-text);
   font-size: .9rem;
   font-weight: 700;
 }
 .qte-feedback.has-error {
-  color: #b33b2e;
+  color: var(--danger);
 }
 .game-error {
   margin: 10px 0 0;
-  color: #b33b2e;
+  color: var(--danger);
   font-size: .85rem;
   font-weight: 700;
 }
-.ticket-level a.is-selected { border-color: var(--caramel); background: var(--cream-deep); }
+.ticket-level a.is-selected { border-color: var(--accent-strong); background: var(--surface-soft); }
 @media (prefers-reduced-motion: reduce) {
   .ticket-cover { transition: none; }
 }

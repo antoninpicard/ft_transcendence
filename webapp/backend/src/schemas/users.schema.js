@@ -11,7 +11,14 @@ export const userBody = z.object({
   email: z.email(),
 });
 
-export const userPatchBody = userBody.partial();
+// Theme of the front: an id of its theme list (lowercase letters and dashes). It is only
+// presentation, so the list itself lives in the front (src/theme.js)
+export const THEME_PATTERN = /^[a-z][a-z-]{0,29}$/;
+
+// PATCH can also change the theme; PUT replaces the identity fields only (username, email)
+export const userPatchBody = userBody.partial().extend({
+  theme: z.string().regex(THEME_PATTERN).optional(),
+});
 
 export const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
