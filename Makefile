@@ -5,6 +5,9 @@ export COMPOSE_FILE = cybersecurity/docker-compose.yml:contbuild/docker-compose.
 # Variables of the Compose files (POSTGRES_*): without this, Compose would look for them
 # in cybersecurity/.env, the directory of the first file
 ENV_FILE = contbuild/.env
+# The API container runs as the user who runs make, to read its 0600 AppRole files
+export HOST_UID := $(shell id -u)
+export HOST_GID := $(shell id -g)
 export COMPOSE_ENV_FILES = $(ENV_FILE)
 # Secrets loaded into Vault by the bootstrap (backend: the API, db: Postgres)
 SECRETS = cybersecurity/vault/secrets/backend.env cybersecurity/vault/secrets/db.env
