@@ -106,6 +106,12 @@ Vault cannot be unsealed after a restart.
   cp webapp/badge-bridge/.env.example webapp/badge-bridge/.env   # SERIAL_PORT, API_URL=https://localhost:8443, DEVICE_TOKEN (same as backend.env)
   ```
 
+  To find `SERIAL_PORT`: on macOS, run `ls /dev/cu.*` with the ESP32 unplugged, then
+  plugged in; the new line is the port (for example `/dev/cu.usbserial-0001`). On Windows
+  it is the `COM` port shown in Arduino IDE (*Tools → Port*), on Linux usually
+  `/dev/ttyUSB0`. No new port: install the driver of the USB chip of the board (CP210x or
+  CH340), or try another cable (some cables only charge).
+
   `make` then starts the bridge in the background once the site is ready, and `make stop`
   stops it (`webapp/badge-bridge/bridge.sh`, log in `webapp/badge-bridge/bridge.log`). It
   runs on the host, not in Docker: Docker cannot reach the USB port on macOS and Windows.
