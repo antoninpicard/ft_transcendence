@@ -101,7 +101,7 @@ async function startBadgeLogin()
 		return;
 	}
 	badgeSocket = start.socket;
-	badgeStatus.value = "Scanne ton badge dans les 30 secondes...";
+	badgeStatus.value = "Scanne ton badge dans les 10 secondes...";
 }
 
 // Show why the 42 login failed when the API sent us back with ?oauth_error=...

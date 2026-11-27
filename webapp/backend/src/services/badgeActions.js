@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { AppError } from '../utils/AppError.js';
 
-export const ACTION_TTL_MS = 30_000;
+export const ACTION_TTL_MS = 10_000;
 export const LOGIN_TOKEN_TTL_MS = 10_000;
 export const PENDING_RESULT_TTL_MS = 5_000;
 

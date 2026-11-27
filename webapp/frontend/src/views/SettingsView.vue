@@ -42,7 +42,7 @@ async function startPairing()
 		return;
 	}
 	pairingSocket = start.socket;
-	pairingStatus.value = "Scanne ton badge dans les 30 secondes...";
+	pairingStatus.value = "Scanne ton badge dans les 10 secondes...";
 }
 
 // Unlink the currently linked badge from this account
