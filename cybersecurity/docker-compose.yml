@@ -26,6 +26,12 @@ services:
     command: server
     cap_add:
       - IPC_LOCK
+    # IPC_LOCK allows mlock, but Docker's default memlock limit (8 MB) i s too small for
+    # Vault: without this, it exits with "Failed to lock memory: cannot allocate memory"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     volumes:
       - ./vault/config:/vault/config:ro
       - vault-data:/vault/file
