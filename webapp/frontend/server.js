@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
+import helmet from "helmet";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
 const PORT = process.env.PORT || 3000;
@@ -31,7 +32,8 @@ function logListening()
 	console.log("Front served on http://" + HOST + ":" + PORT + ", API relayed to " + API_URL);
 }
 
-// Serve the built Vue front, relay the API calls and the WebSocket, then listen on PORT
+// Serve the built Vue front with security headers (HSTS, CSP, nosniff...), relay the API calls
+// and the WebSocket (the API sets its own headers), then listen on PORT
 function startServer()
 {
 	const app = express();
@@ -39,6 +41,7 @@ function startServer()
 
 	app.disable("x-powered-by");
 	app.use(apiProxy);
+	app.use(helmet());
 	app.use(express.static(DIST_DIR));
 	app.get("/{*page}", sendIndex);
 
