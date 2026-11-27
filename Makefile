@@ -9,6 +9,8 @@ export COMPOSE_ENV_FILES = $(ENV_FILE)
 # Secrets loaded into Vault by the bootstrap (backend: the API, db: Postgres)
 SECRETS = cybersecurity/vault/secrets/backend.env cybersecurity/vault/secrets/db.env
 CERT = cybersecurity/waf/certs/server.crt
+# USB badge bridge, run on the host next to the stack (see the script)
+BRIDGE = bash webapp/badge-bridge/bridge.sh
 KEY = cybersecurity/waf/certs/server.key
 
 all: $(ENV_FILE) $(SECRETS) $(CERT)
@@ -24,6 +26,7 @@ all: $(ENV_FILE) $(SECRETS) $(CERT)
 	@bash cybersecurity/waf/scripts/wait-healthy.sh cybersecurity-nginx-1
 	@echo ""
 	@echo "Site ready: https://localhost:8443 (accept the self-signed certificate warning in the browser)"
+	@$(BRIDGE) start
 
 # WAF alone in front of the whoami test backend (cybersecurity/waf/tests/waf-test.sh).
 # It runs in a separate Compose project (waftest) with its own network, so the network of
@@ -64,10 +67,12 @@ a_wish:
 
 stop:
 	@clear
+	@$(BRIDGE) stop
 	docker compose down
 
 
 clean:
+	@$(BRIDGE) stop
 	docker compose down
 	@echo "After cleaning :"
 	@docker ps -a
@@ -77,6 +82,7 @@ fclean:
 	@read ans && [ "$$ans" = y ]
 	# Removes the database volume only: the Vault volume (cybersecurity_vault-data) is kept,
 	# otherwise Vault would have to be initialized again and ~/vault-init.json would be useless
+	@$(BRIDGE) stop
 	docker compose down --rmi local
 	docker volume rm -f cybersecurity_db-data
 	@echo "After cleaning :"

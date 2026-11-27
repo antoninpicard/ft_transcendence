@@ -99,14 +99,19 @@ Vault cannot be unsealed after a restart.
   `FORTYTWO_REDIRECT_URI` (same address) and `FRONT_URL=https://localhost:8443` in
   `contbuild/.env`, and `FORTYTWO_CLIENT_SECRET` in `cybersecurity/vault/secrets/backend.env`.
 - **Badge reader:** flash `firmware/esp32_rfid.ino` (Arduino IDE, library `MFRC522_I2C`),
-  plug the ESP32 into the kiosk PC over USB, then start the bridge there:
+  plug the ESP32 into the kiosk PC over USB, close the Arduino Serial Monitor, and fill in
+  the bridge's settings:
 
   ```sh
-  cd webapp/badge-bridge
-  cp .env.example .env   # SERIAL_PORT, API_URL=https://localhost:8443, DEVICE_TOKEN (same as backend.env)
-  npm install
-  NODE_EXTRA_CA_CERTS=../../cybersecurity/waf/certs/server.crt npm start
+  cp webapp/badge-bridge/.env.example webapp/badge-bridge/.env   # SERIAL_PORT, API_URL=https://localhost:8443, DEVICE_TOKEN (same as backend.env)
   ```
+
+  `make` then starts the bridge in the background once the site is ready, and `make stop`
+  stops it (`webapp/badge-bridge/bridge.sh`, log in `webapp/badge-bridge/bridge.log`). It
+  runs on the host, not in Docker: Docker cannot reach the USB port on macOS and Windows.
+  Under WSL, Windows starts it (`node.exe`), since only Windows sees the COM ports. Without
+  `.env`, Node.js or a plugged reader, `make` still succeeds and says why the bridge is off.
+  To run it by hand instead: `cd webapp/badge-bridge && npm install && NODE_EXTRA_CA_CERTS=../../cybersecurity/waf/certs/server.crt npm start`.
 
   The kiosk PC is the machine that runs the stack: the WAF certificate is only valid for
   `localhost` and `127.0.0.1`. Badge login is only accepted from `BADGE_LOGIN_ALLOWED_IPS`
