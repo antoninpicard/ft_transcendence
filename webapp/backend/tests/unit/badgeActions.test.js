@@ -80,9 +80,9 @@ describe('badgeActions', () => {
     assert.equal(await actions.handleScan(hash), 'not-pairing');
   });
 
-  it('expire une action après 30 s', async () => {
+  it('expire une action après 10 s', async () => {
     actions.start('pair', 'u1');
-    clock += 30_001;
+    clock += 10_001;
     assert.equal(await actions.handleScan(hash), 'not-pairing');
     assert.equal(linkCalls.length, 0);
   });
@@ -99,7 +99,7 @@ describe('badgeActions', () => {
 
   it('accepte une nouvelle action une fois la précédente expirée', () => {
     actions.start('pair', 'u1');
-    clock += 30_001;
+    clock += 10_001;
     assert.doesNotThrow(() => actions.start('login'));
   });
 
@@ -197,7 +197,7 @@ describe('badgeActions', () => {
     const { code } = actions.start('login');
     const socket = fakeSocket();
     actions.attachSocket(code, socket);
-    clock += 30_001;
+    clock += 10_001;
     actions.start('login');
     assert.equal(socket.closed, 1);
     assert.equal(socket.sent.length, 0);
@@ -207,7 +207,7 @@ describe('badgeActions', () => {
     const { code } = actions.start('login');
     const socket = fakeSocket();
     actions.attachSocket(code, socket);
-    clock += 30_001;
+    clock += 10_001;
     assert.equal(await actions.handleScan(hash), 'not-pairing');
     assert.equal(socket.closed, 1);
     assert.equal(socket.sent.length, 0);
@@ -220,7 +220,7 @@ describe('badgeActions', () => {
       throw new Error('fermeture impossible');
     };
     actions.attachSocket(code, socket);
-    clock += 30_001;
+    clock += 10_001;
     assert.doesNotThrow(() => actions.start('login'));
   });
 

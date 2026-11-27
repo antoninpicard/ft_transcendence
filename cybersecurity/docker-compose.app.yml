@@ -68,8 +68,9 @@ services:
       - vault-net
 
 networks:
-  # Fixed subnet: a browser on the host is always seen by the API as 172.30.0.1 (the
-  # gateway), so BADGE_LOGIN_ALLOWED_IPS works the same way on every machine
+  # Fixed subnet: on Linux and Windows (WSL), a browser on the host is seen by the API as
+  # 172.30.0.1, the gateway, so BADGE_LOGIN_ALLOWED_IPS keeps the same value. Docker
+  # Desktop on macOS shows every client as 192.168.65.1 instead (see contbuild/.env.example).
   default:
     ipam:
       config:

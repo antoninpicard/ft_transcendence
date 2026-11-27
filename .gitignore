@@ -25,3 +25,6 @@ webapp/frontend/dist/
 
 # 42 subject (not part of the project)
 en.subject.pdf
+
+# Badge bridge started by make
+webapp/badge-bridge/bridge.pid

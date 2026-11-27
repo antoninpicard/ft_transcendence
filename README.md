@@ -99,17 +99,32 @@ Vault cannot be unsealed after a restart.
   `FORTYTWO_REDIRECT_URI` (same address) and `FRONT_URL=https://localhost:8443` in
   `contbuild/.env`, and `FORTYTWO_CLIENT_SECRET` in `cybersecurity/vault/secrets/backend.env`.
 - **Badge reader:** flash `firmware/esp32_rfid.ino` (Arduino IDE, library `MFRC522_I2C`),
-  plug the ESP32 into the kiosk PC over USB, then start the bridge there:
+  plug the ESP32 into the kiosk PC over USB, close the Arduino Serial Monitor, and fill in
+  the bridge's settings:
 
   ```sh
-  cd webapp/badge-bridge
-  cp .env.example .env   # SERIAL_PORT, API_URL=https://localhost:8443, DEVICE_TOKEN (same as backend.env)
-  npm install
-  NODE_EXTRA_CA_CERTS=../../cybersecurity/waf/certs/server.crt npm start
+  cp webapp/badge-bridge/.env.example webapp/badge-bridge/.env   # SERIAL_PORT, API_URL=https://localhost:8443, DEVICE_TOKEN (same as backend.env)
   ```
 
-  Badge login is only accepted from `BADGE_LOGIN_ALLOWED_IPS` (`contbuild/.env`). A
-  browser on the machine that runs the stack is seen as `172.30.0.1`.
+  To find `SERIAL_PORT`: on macOS, run `ls /dev/cu.*` with the ESP32 unplugged, then
+  plugged in; the new line is the port (for example `/dev/cu.usbserial-0001`). On Windows
+  it is the `COM` port shown in Arduino IDE (*Tools → Port*), on Linux usually
+  `/dev/ttyUSB0`. No new port: install the driver of the USB chip of the board (CP210x or
+  CH340), or try another cable (some cables only charge).
+
+  `make` then starts the bridge in the background once the site is ready, and `make stop`
+  stops it (`webapp/badge-bridge/bridge.sh`, log in `webapp/badge-bridge/bridge.log`). It
+  runs on the host, not in Docker: Docker cannot reach the USB port on macOS and Windows.
+  Under WSL, Windows starts it (`node.exe`), since only Windows sees the COM ports. Without
+  `.env`, Node.js or a plugged reader, `make` still succeeds and says why the bridge is off.
+  To run it by hand instead: `cd webapp/badge-bridge && npm install && NODE_EXTRA_CA_CERTS=../../cybersecurity/waf/certs/server.crt npm start`.
+
+  The kiosk PC is the machine that runs the stack: the WAF certificate is only valid for
+  `localhost` and `127.0.0.1`. Badge login is only accepted from `BADGE_LOGIN_ALLOWED_IPS`
+  (`contbuild/.env`). A browser on that machine is seen by the API as `172.30.0.1` on Linux
+  and Windows (WSL), and as `192.168.65.1` with Docker Desktop on macOS, where every client
+  gets that address, so the restriction no longer tells the kiosk from other machines. The
+  address seen by the API is in its logs (`make a_wish`).
 
 ### Other commands
 
