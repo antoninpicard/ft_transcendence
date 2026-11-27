@@ -154,7 +154,7 @@ Vault cannot be unsealed after a restart.
 
 | Member | Role | Responsibilities |
 |---|---|---|
-| anpicard | Developer | Repository owner: protected `main` branch, pull request merges, single-command startup of the whole stack. Authentication on the front (login, signup, settings, 2FA pages), 42 OAuth, 2FA, NFC badge reader (firmware, USB bridge, API). |
+| anpicard | Product Owner, Developer | Product vision, priorities of the features and the backlog. Repository owner: protected `main` branch, pull request merges, single-command startup of the whole stack. Authentication on the front (login, signup, settings, 2FA pages), 42 OAuth, 2FA, NFC badge reader (firmware, USB bridge, API). |
 | lucnavar | Tech Lead, Developer | Architecture of the backend and the database, conventions of the API, reviews of the API code, public API, profiles, friends and messages. |
 | allefran | Project Manager, Developer (security) | Organization of the team and follow-up of the progress. WAF (nginx + ModSecurity + OWASP CRS), HashiCorp Vault, isolation of the services and their secrets, Makefile. |
 | tmarion | Developer (front and game) | Visual identity of the site (theme, layout, responsive design) and the scratch-ticket game. |
