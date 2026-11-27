@@ -384,9 +384,11 @@ The migrations in place today:
 | `004_add_api_keys_friends_messages.sql` | `api_keys`, `friendships` (one row per pair, `pending` or `accepted`), `messages` |
 | `005_index_friendships_messages_api_keys.sql` | indexes on the foreign keys and lookup columns of the three tables above |
 | `006_add_two_factor.sql` | `users.totp_secret` (base32; `NULL` until the first setup and after 2FA is turned off), `users.totp_enabled` (default `false`), `users.totp_last_step` (last accepted code, against replays) |
+| `007_create_ticket_plays.sql` | `ticket_plays` (one row per scratch ticket opened, with its points), indexed on `user_id` |
+| `008_server_side_tickets.sql` | `ticket_plays.sequence` (keys drawn by the server), `ticket_plays.revealed_at` (`NULL` while the ticket is in progress), `played_at` renamed `created_at`, and a unique partial index: one ticket in progress per player |
 
 Every table that points at `users` does so with `ON DELETE CASCADE`: deleting an
-account removes its sessions, badge, API keys, friendships and messages.
+account removes its sessions, badge, API keys, friendships, messages and ticket plays.
 
 > **Never edit a migration that has already been applied.** It is recorded in
 > `schema_migrations` and will not run again, so your database and your
@@ -716,6 +718,7 @@ A valid key is refused with `403` (`Cette action exige une session`) on:
 | `POST /keys`, `GET /keys`, `DELETE /keys/:id` | a stolen key must not create more keys |
 | `POST /badge/pairing`, `GET /badge`, `DELETE /badge` | a stolen key must not link an attacker's badge to the account |
 | `DELETE /users/:id` | deleting the account is irreversible |
+| `POST /game/tickets`, `POST /game/tickets/:id/reveal` | the game is played in the browser, not by scripts |
 | `GET /auth/2fa`, `POST /auth/2fa/setup`, `POST /auth/2fa/enable`, `POST /auth/2fa/disable` | a stolen key must not replace the 2FA secret or turn 2FA off |
 
 Routes that need a login answer `401` without credentials, before any `403`.
@@ -782,6 +785,8 @@ while an invalid body on `POST /friends/requests` without credentials gets
 | `GET /messages` | `200`, `401` |
 | `GET /messages/:userId` | `200`, `400`, `401` |
 | `POST /messages/:userId` | `201`, `400`, `401`, `403` (not friends), `404`, `429` |
+| `GET /game/catalog` | `200`, `401` |
+| `GET /game/leaderboard` | `200`, `401` |
 
 Every route also answers `401` for an invalid key, `405` for a wrong method,
 and `429` once the key's limit is reached. Not listed, because they ignore the
@@ -1234,6 +1239,8 @@ IETF draft 6 headers). Beyond the limit the answer is `429`
 | `POST /auth/2fa/disable` | 10 per minute | client IP |
 | every `/api` request carrying a valid API key | 60 per minute | API key |
 | `POST /messages/:userId` | 30 per minute | authenticated user |
+| `POST /game/tickets` | 30 per minute | authenticated user |
+| `POST /game/tickets/:id/reveal` | 30 per minute | authenticated user |
 
 The key counter counts every request made with the key, errors included, and
 ignores session and anonymous requests. The message counter is shared between
@@ -1393,6 +1400,71 @@ How a chat screen uses it:
    been sent between the last poll and yours, and `after=<your id>` would skip
    it. The next poll returns your message again among the new ones; skip the
    ids already shown.
+
+### Scratch-ticket game
+
+**The server runs the game; the front only displays it.** The server draws each
+ticket's key sequence, fixes its points, checks the sequence typed by the player and pays
+the prize. A player's score is the sum of the points of the tickets they **revealed**. Every
+route needs a login (`401` otherwise).
+
+| Route | Auth | Body | Responses |
+|---|---|---|---|
+| `GET /game/catalog` | session or key | — | `200` the tickets, `401` |
+| `GET /game/leaderboard` | session or key | — | `200` the leaderboard, `401` |
+| `POST /game/tickets` | session | `{ "ticket" }` | `201` the ticket in progress, `400`, `401`, `403`, `429` |
+| `POST /game/tickets/:id/reveal` | session | `{ "keys" }` | `200` the prize and the leaderboard, `400`, `401`, `403`, `404`, `409`, `429` |
+
+**`GET /game/catalog`** is the only definition of the tickets: the front renders it and
+the server pays from it (`src/schemas/game.schema.js`). `keys` is the alphabet of the
+sequences; `keys` of a ticket is the length of its sequence.
+
+```json
+{
+  "keys": ["A", "S", "D", "F", "J", "K", "L"],
+  "items": [{ "id": "royale", "name": "Royale", "price": "20 €", "level": "Chaperonné", "keys": 10, "points": 50 }]
+}
+```
+
+**`POST /game/tickets`** buys a ticket: `ticket` is a catalog `id` (`400` otherwise). The
+server draws its sequence with the crypto RNG and answers
+`{ "id", "ticket", "sequence": "ASDFJKLASD" }`. The points are not in the answer, and a
+`points` field sent by the client is dropped like any unknown field. A player holds **one
+ticket in progress**: buying another one replaces it (an upsert on a unique partial index,
+so two parallel purchases cannot leave two).
+
+**`POST /game/tickets/:id/reveal`** opens the ticket with the keys the player typed,
+`{ "keys": "ASDFJKLASD" }` (letters of the alphabet, case-insensitive). Answers:
+
+- `200` `{ "ticket", "points", "leaderboard" }`: the prize is paid;
+- `400` `Données invalides …`: `:id` is not a UUID, or `keys` holds other characters;
+- `400` `Séquence incorrecte`: the keys differ from the sequence; the ticket stays in
+  progress;
+- `400` `Grattage trop rapide`: less than 150 ms per key since the purchase; the ticket
+  stays in progress;
+- `404` `Ticket introuvable ou expiré`: unknown, someone else's, replaced by a newer
+  ticket, or bought more than 10 minutes ago;
+- `409` `Ce ticket est déjà ouvert`.
+
+Every condition is checked in the single `UPDATE` that marks the ticket revealed, with the
+database clock: two parallel reveals of one ticket pay once.
+
+The leaderboard (also returned by `GET /game/leaderboard`) holds `top`, the 5 best players
+by score, and `me`, the caller's own rank and score, so the front can show the caller even
+outside the top 5. `rank` is shared by equal scores (`1, 2, 2, 4`); a player who has not
+revealed a ticket yet is not ranked: `me` is then `{ "rank": null, "score": 0 }`. The front
+polls `GET /game/leaderboard` every 10 seconds to show the tickets of the other players.
+
+```json
+{
+  "ticket": "royale",
+  "points": 50,
+  "leaderboard": {
+    "top": [{ "rank": 1, "user": { "id": "3f2b…", "username": "lucas" }, "score": 75 }],
+    "me": { "rank": 1, "score": 75 }
+  }
+}
+```
 
 ---
 
@@ -1601,6 +1673,10 @@ from this file: use a browser, or a tool such as `websocat`.
   per IP and identifier). That leaves about 10 guesses per minute per address
   for someone who already knows the password, against 3 valid codes out of a
   million at any time.
+- **A script can still play the game.** The sequence has to be sent to the browser so
+  the player can type it: a logged-in script can read it, wait 150 ms per key and reveal
+  the ticket. The server only guarantees that every point comes from a real ticket, typed
+  back right and not faster than a person, within 30 tickets per minute.
 - **Messages are polled.** There is no push: a client asks for new messages
   every few seconds with `GET /messages/:userId?after=<id>`, so they appear
   with a short delay.

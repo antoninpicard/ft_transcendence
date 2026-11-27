@@ -59,6 +59,16 @@ export function createApp({ rateLimit = env.NODE_ENV !== 'test' } = {}) {
         keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req.ip),
       }),
     );
+    for (const path of ['/api/game/tickets', '/api/game/tickets/:id/reveal']) {
+      app.post(
+        path,
+        limiter({
+          windowMs: 60_000,
+          limit: 30,
+          keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req.ip),
+        }),
+      );
+    }
   }
 
   app.use('/api', apiRouter);

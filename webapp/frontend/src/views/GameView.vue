@@ -5,137 +5,159 @@
         <aside class="game-panel leaderboard">
           <h2 class="panel-heading">🏆 Classement</h2>
           <p class="leaderboard-kicker">Les plus chanceux du club</p>
-          <div v-for="player in leaderboard" :key="player.name" class="leader-row" :class="{ 'player-row': player.current }">
+          <div v-for="player in leaderboardRows" :key="player.key" class="leader-row" :class="{ 'player-row': player.current }">
             <span class="leader-rank">{{ player.rank }}</span><strong>{{ player.name }}</strong><span class="leader-score">{{ player.score }}</span>
           </div>
+          <p v-if="leaderboard.error.value" class="game-error" role="alert">{{ leaderboard.error.value }}</p>
         </aside>
 
         <section class="game-center scratch-center">
-          <h2 class="game-title">{{ selected.name }}</h2>
-          <div class="scratch-stage">
-            <div class="scratch-ticket">
-              <img class="ticket-art ticket-size" :src="selected.image" :alt="'Ticket à gratter ' + selected.name">
-              <div v-if="isRevealed" class="revealed-prize">
-                <strong>{{ selected.gain }}</strong>
-                <span>POINTS</span>
+          <template v-if="game.ticket.value">
+            <h2 class="game-title">{{ game.ticket.value.name }}</h2>
+            <div class="scratch-stage">
+              <div class="scratch-ticket">
+                <img class="ticket-art ticket-size" :src="imageOf(game.ticket.value)" :alt="'Ticket à gratter ' + game.ticket.value.name">
+                <div v-if="game.state.value === 'revealed'" class="revealed-prize">
+                  <strong>{{ game.points.value }}</strong>
+                  <span>POINTS</span>
+                </div>
+                <img
+                  class="ticket-art ticket-cover"
+                  :class="{ 'is-scratched': game.state.value === 'revealed' }"
+                  :style="{ '--scratch-progress': game.progress.value + '%' }"
+                  :src="imageOf(game.ticket.value)"
+                  :alt="'Couverture à gratter du ticket ' + game.ticket.value.name"
+                >
               </div>
-              <img
-                class="ticket-art ticket-cover"
-                :class="{ 'is-scratching': isScratching, 'is-scratched': isRevealed }"
-                :style="{ '--scratch-progress': scratchProgress + '%' }"
-                :src="selected.image"
-                :alt="'Couverture à gratter du ticket ' + selected.name"
-              >
             </div>
-          </div>
-          <div v-if="!isRevealed" class="qte-panel" aria-live="polite">
-            <p class="qte-instruction">Qte2Fou</p>
-            <div class="qte-sequence">
-              <span v-for="(key, index) in qteSequence" :key="index" class="qte-key" :class="{ 'is-done': index < currentStep, 'is-next': index === currentStep }">{{ key }}</span>
+
+            <div class="qte-panel" aria-live="polite">
+              <template v-if="game.state.value === 'starting' || game.state.value === 'scratching'">
+                <p class="qte-instruction">Qte2Fou</p>
+                <div class="qte-sequence">
+                  <span v-for="(key, index) in game.sequence.value" :key="index" class="qte-key" :class="{ 'is-done': index < game.step.value, 'is-next': index === game.step.value }">{{ key }}</span>
+                </div>
+                <p class="qte-feedback" :class="{ 'has-error': game.mistake.value }">{{ feedback }}</p>
+              </template>
+              <p v-else-if="game.state.value === 'revealing'" class="qte-instruction">Ouverture du ticket…</p>
+              <button v-else-if="game.state.value === 'revealed'" type="button" @click="game.start(game.ticket.value)">Rejouer</button>
+              <template v-else-if="game.state.value === 'error'">
+                <p class="game-error" role="alert">{{ game.error.value }}</p>
+                <button type="button" @click="game.retry()">Réessayer</button>
+              </template>
             </div>
-            <p class="qte-feedback" :class="{ 'has-error': qteError }">{{ qteError ? 'Raté ! Recommence la séquence.' : currentStep + ' / ' + qteSequence.length + ' touches' }}</p>
-          </div>
+          </template>
+          <p v-else-if="catalogError" class="game-error" role="alert">{{ catalogError }}</p>
+          <p v-else class="qte-instruction">Chargement des tickets…</p>
         </section>
 
         <aside class="game-panel game-picker">
           <h2 class="panel-heading">🎟 Choisir un jeu</h2>
           <section v-for="group in ticketGroups" :key="group.price" class="ticket-level">
-            <h3>{{ group.price }} <span>{{ group.label }}</span></h3>
+            <h3>{{ group.price }} <span>{{ group.level }}</span></h3>
             <a
               v-for="ticket in group.tickets"
-              :key="ticket.name"
+              :key="ticket.id"
               href="#"
-              :class="{ 'is-selected': selected.name === ticket.name }"
-              @click.prevent="selectTicket(ticket)"
+              :class="{ 'is-selected': game.ticket.value?.id === ticket.id }"
+              @click.prevent="game.start(ticket)"
             >
-              <img class="mini-ticket-art" :src="ticket.image" :alt="'Aperçu ' + ticket.name">
-              <span><strong>{{ ticket.name }}</strong><small>{{ ticket.description }}</small></span>
+              <img class="mini-ticket-art" :src="imageOf(ticket)" :alt="'Aperçu ' + ticket.name">
+              <span><strong>{{ ticket.name }}</strong><small>{{ ticket.points }} points à gagner</small></span>
             </a>
           </section>
         </aside>
       </div>
-      <p class="sample-note">Maquette visuelle uniquement — tickets, scores et gains fictifs. Aucun jeu ni paiement n'est activé.</p>
+      <p class="sample-note">Points fictifs — aucun paiement n'est activé.</p>
     </div>
   </div>
 </template>
 
 <script setup>
+// This view only displays the game: the tickets come from the API (GET /api/game/catalog),
+// the ticket state machine lives in useScratchTicket, the scoreboard in useLeaderboard.
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import '../game.css';
+import { request } from '../api.js';
+import { currentUser } from '../session.js';
+import { useScratchTicket } from '../game/useScratchTicket.js';
+import { useLeaderboard } from '../game/useLeaderboard.js';
 import ticket1 from '../assets/tickets/ticket_1.JPG';
 import ticket2 from '../assets/tickets/ticket_2.JPG';
 import ticket3 from '../assets/tickets/ticket_3.JPG';
 
-const tickets = [
-  { name: 'Étoile Filante', price: '5 €', group: '5 €', qteLength: 4, image: ticket1, gain: '10', description: '', message: 'Bravo ! Vous gagnez 10 points fictifs.' },
-  { name: 'Diamant Rouge', price: '10 €', group: '10 €', qteLength: 7, image: ticket2, gain: '25', description: '', message: 'Magnifique ! Vous gagnez 25 points fictifs.' },
-  { name: 'Royale', price: '20 €', group: '20 €', qteLength: 10, image: ticket3, gain: '50', description: '', message: 'Royal ! Vous gagnez 50 points fictifs.' }
-];
+// The images are the only ticket data kept in the front
+const IMAGES = { 'etoile-filante': ticket1, 'diamant-rouge': ticket2, royale: ticket3 };
+const imageOf = (ticket) => IMAGES[ticket.id] ?? ticket1;
 
-const selected = ref(tickets[2]);
-const isScratching = ref(false);
-const isRevealed = ref(false);
-const qteKeys = ['A', 'S', 'D', 'F', 'J', 'K', 'L'];
-const qteSequence = ref(makeSequence(selected.value.qteLength));
-const currentStep = ref(0);
-const qteError = ref(false);
-const scratchProgress = computed(() => Math.round((currentStep.value / qteSequence.value.length) * 100));
+const catalog = ref([]);
+const catalogError = ref('');
+const leaderboard = useLeaderboard();
+const game = useScratchTicket({ onRevealed: leaderboard.set });
 
-function makeSequence(length) {
-  return Array.from({ length }, () => qteKeys[Math.floor(Math.random() * qteKeys.length)]);
-}
-
-function resetQte() {
-  qteSequence.value = makeSequence(selected.value.qteLength);
-  currentStep.value = 0;
-  qteError.value = false;
-  isScratching.value = false;
-  isRevealed.value = false;
-}
-
-function handleQteKeydown(event) {
-  if (isRevealed.value || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
-  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-  const pressedKey = event.key.toUpperCase();
-  if (!qteKeys.includes(pressedKey)) return;
-
-  if (pressedKey === qteSequence.value[currentStep.value]) {
-    qteError.value = false;
-    currentStep.value += 1;
-    isScratching.value = true;
-    if (currentStep.value === qteSequence.value.length) {
-      isRevealed.value = true;
-      isScratching.value = false;
-    }
-  } else {
-    currentStep.value = 0;
-    isScratching.value = false;
-    qteError.value = true;
+async function loadCatalog() {
+  const response = await request('GET', '/api/game/catalog');
+  if (!response.ok) {
+    catalogError.value = response.error || 'Tickets indisponibles.';
+    return;
   }
+  catalog.value = response.data.items;
+  game.setKeys(response.data.keys);
+  // Start with the most expensive ticket, as before
+  if (catalog.value.length) game.start(catalog.value[catalog.value.length - 1]);
 }
 
-function selectTicket(ticket) {
-  selected.value = ticket;
-  resetQte();
+// Tickets grouped by price, in catalog order
+const ticketGroups = computed(() => {
+  const groups = [];
+  for (const ticket of catalog.value) {
+    let group = groups.find((g) => g.price === ticket.price);
+    if (!group) groups.push(group = { price: ticket.price, level: ticket.level, tickets: [] });
+    group.tickets.push(ticket);
+  }
+  return groups;
+});
+
+const feedback = computed(() => {
+  if (game.state.value === 'starting') return 'Préparation du ticket…';
+  if (game.mistake.value) return 'Raté ! Recommence la séquence.';
+  return game.step.value + ' / ' + game.sequence.value.length + ' touches';
+});
+
+function handleKeydown(event) {
+  if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+  if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, button, [contenteditable="true"]')) return;
+  if (game.press(event.key.toUpperCase())) event.preventDefault();
 }
 
-onMounted(() => window.addEventListener('keydown', handleQteKeydown));
-onUnmounted(() => window.removeEventListener('keydown', handleQteKeydown));
+const MEDALS = ['🥇', '🥈', '🥉'];
+const rankLabel = (rank) => (rank === null ? '—' : MEDALS[rank - 1] ?? String(rank));
 
-const ticketGroups = computed(() => [
-  { price: '5 €', label: 'Débutant', tickets: tickets.filter(t => t.group === '5 €') },
-  { price: '10 €', label: 'Classique', tickets: tickets.filter(t => t.group === '10 €') },
-  { price: '20 €', label: 'Chaperonné', tickets: tickets.filter(t => t.group === '20 €') }
-]);
+const leaderboardRows = computed(() => {
+  const myId = currentUser.value?.id;
+  const { top, me } = leaderboard.board.value;
+  const rows = top.map((entry) => ({
+    key: entry.user.id,
+    rank: rankLabel(entry.rank),
+    name: entry.user.id === myId ? entry.user.username + ' (vous)' : entry.user.username,
+    score: entry.score + ' pts',
+    current: entry.user.id === myId,
+  }));
+  if (!rows.some((row) => row.current)) {
+    rows.push({ key: 'me', rank: rankLabel(me.rank), name: 'vous', score: me.score + ' pts', current: true });
+  }
+  return rows;
+});
 
-const leaderboard = [
-  { rank: '🥇', name: '', score: ' pts' },
-  { rank: '🥈', name: '', score: ' pts' },
-  { rank: '🥉', name: '', score: ' pts' },
-  { rank: '4', name: '', score: ' pts' },
-  { rank: '5', name: '', score: ' pts' },
-  { rank: '6', name: 'vous', score: ' pts', current: true }
-];
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+  loadCatalog();
+  leaderboard.startPolling();
+});
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+  leaderboard.stopPolling();
+});
 </script>
 
 <style scoped>
@@ -246,6 +268,12 @@ const leaderboard = [
 }
 .qte-feedback.has-error {
   color: #b33b2e;
+}
+.game-error {
+  margin: 10px 0 0;
+  color: #b33b2e;
+  font-size: .85rem;
+  font-weight: 700;
 }
 .ticket-level a.is-selected { border-color: var(--caramel); background: var(--cream-deep); }
 @media (prefers-reduced-motion: reduce) {

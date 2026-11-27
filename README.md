@@ -184,7 +184,7 @@ Security layer:
 
 PostgreSQL database, created by the migrations in `webapp/backend/src/db/migrations/`.
 Every table points to `users` with `ON DELETE CASCADE`: deleting an account deletes
-its sessions, badge, API keys, friendships and messages.
+its sessions, badge, API keys, friendships, messages and tickets.
 
 | Table | Key fields | Relations |
 |---|---|---|
@@ -194,6 +194,7 @@ its sessions, badge, API keys, friendships and messages.
 | `api_keys` | `id` uuid PK, `name`, `key_hash` unique, `prefix`, `last_used_at` | `user_id` → `users` |
 | `friendships` | `id` uuid PK, `status` | `requester_id`, `addressee_id` → `users` |
 | `messages` | `id` uuid PK, `body`, `created_at` | `sender_id`, `recipient_id` → `users` |
+| `ticket_plays` | `id` uuid PK, `ticket`, `sequence`, `points`, `created_at`, `revealed_at` (null while in progress) | `user_id` → `users`, at most one ticket in progress per user |
 
 - `users`: one row per account. Only the argon2id hash of the password is stored
   (`password_hash` is null for accounts created with 42).
@@ -212,7 +213,7 @@ its sessions, badge, API keys, friendships and messages.
 | Badge login | anpicard, lucnavar | Login page: tap a linked badge at the kiosk (`/api/badge/login`), then the 2FA code if enabled. |
 | Real-time feedback | anpicard, lucnavar | WebSocket `/ws` bound to a pending badge action by its random code. |
 | Badge reader | anpicard | ESP32 + MFRC522 over USB (`firmware/`), USB bridge on the kiosk PC (`webapp/badge-bridge`), `/api/hello` and `/api/scan` protected by `DEVICE_TOKEN`. |
-| Scratch-ticket game | tmarion | Ticket choice, key sequence to scratch, revealed prize (`/game`). |
+| Scratch-ticket game | tmarion | Ticket choice, key sequence to scratch, revealed prize and live leaderboard (`/game`). The server draws the sequence, checks it and pays the points (`/api/game`). |
 | Profiles and user directory | lucnavar | Public profile of any user and paginated list of accounts; the owner edits their username and email (`/api/users`, `/api/users/:id`). A profile shows how the viewer stands with that user (`relation`). |
 | Friends | lucnavar | Send, accept, decline or cancel a friend request, remove a friend, list friends and pending requests (`/api/friends`). |
 | Direct messages | lucnavar | Messages between friends, conversation list, history paginated by cursor (`/api/messages`). |
