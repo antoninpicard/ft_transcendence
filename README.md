@@ -4,7 +4,10 @@
 
 ## Description
 
-TODO (team): project name and goal.
+**CLB Private Club** is a satirical online scratch-ticket club: members join the club,
+scratch virtual tickets, and get jokes about gambling instead of real money. The goal
+of the project is a secure multi-user web application, with several ways to log in
+(password, 42 account, NFC badge, all protected by 2FA) and a hardened infrastructure.
 
 ft_transcendence is a web application where users create an account with a
 username, an email and a password, or log in with their 42 account. They can link a
@@ -149,11 +152,26 @@ Vault cannot be unsealed after a restart.
 
 ## Team Information
 
-TODO (team): role(s) and responsibilities of each member.
+| Member | Role | Responsibilities |
+|---|---|---|
+| anpicard | Project Manager, Developer | Repository owner: protected `main` branch, pull request merges, single-command startup of the whole stack. Authentication on the front (login, signup, settings, 2FA pages), 42 OAuth, 2FA, NFC badge reader (firmware, USB bridge, API). |
+| lucnavar | Tech Lead, Developer | Architecture of the backend and the database, conventions of the API, reviews of the API code, public API, profiles, friends and messages. |
+| allefran | Developer (security) | WAF (nginx + ModSecurity + OWASP CRS), HashiCorp Vault, isolation of the services and their secrets, Makefile. |
+| tmarion | Developer (front and game) | Visual identity of the site (theme, layout, responsive design) and the scratch-ticket game. |
+| fdeleard | Developer | TODO (fdeleard): responsibilities. |
 
 ## Project Management
 
-TODO (team): work organization, tools, communication channels.
+- **Organization:** the project was split by module, one owner per module (table
+  above), with the API as the shared base: features that touch the API were written
+  with lucnavar, who keeps its conventions consistent.
+- **Git workflow:** one branch per member (`Webapp_Anto`, `feature/cybersecurity`,
+  `tmarion`...), merged into `main` through pull requests. `main` is protected by a
+  GitHub ruleset (pull request required, 2 approvals, no direct push).
+- **Tools:** GitHub (branches, pull requests, reviews), a shared Google Doc for
+  decisions, task lists and progress reports.
+- **Communication:** a WhatsApp group for daily coordination, and work sessions
+  together on campus.
 
 ## Technical Stack
 
@@ -171,7 +189,25 @@ TODO (team): work organization, tools, communication channels.
 - **Device:** an ESP32 with an NFC reader, plugged in over USB; `webapp/badge-bridge`
   sends each scanned UID to `/api/scan`, authenticated with a shared device token
   (`DEVICE_TOKEN`, compared in constant time).
-- TODO (team): justification of the major technical choices.
+
+Justification of the major choices:
+
+- **Vue 3 + Express 5:** both are widely used, well documented and quick to learn, so
+  every member could read and review the whole code. Both are in JavaScript, so the
+  front, the API, the USB bridge and the tests share one language.
+- **PostgreSQL with plain SQL (no ORM):** the data is relational (users, friendships,
+  messages, badges, keys) and needs real constraints: foreign keys with cascading
+  deletes, unique indexes that settle races between concurrent requests. Plain SQL
+  keeps every query visible and explainable.
+- **Server-side sessions instead of JWT:** a session can be revoked at once (logout,
+  account deletion), and the cookie is `HttpOnly`, `Secure` and `SameSite`.
+- **argon2id:** the current recommendation for password hashing (salted, memory-hard).
+- **USB for the badge reader:** works on any network (the campus Wi-Fi isolates
+  devices), keeps every secret out of the firmware, and the reader cannot be reached
+  by other machines.
+- **nginx + ModSecurity + Vault:** required by the cybersecurity module, and they put
+  every request behind one HTTPS entry point (port 8443) and keep secrets out of Git and
+  of the images.
 
 Security layer:
 
@@ -229,7 +265,33 @@ its sessions, badge, API keys, friendships and messages.
 | Complete 2FA system (TOTP) | Minor | 1 | anpicard |
 | Public API with a secured API key, rate limiting and documentation | Major | 2 | lucnavar |
 | Allow users to interact with other users (profiles, friends, chat) | Major | 2 | lucnavar |
-| TODO (team): other modules | | | |
+| Use a framework for both the frontend (Vue 3) and the backend (Express 5) | Major | 2 | all |
+| Support for additional browsers (Firefox, Edge) | Minor | 1 | all |
+
+**Total: 13 points** (5 Major × 2 + 3 Minor × 1).
+
+### Use a framework for both the frontend and the backend (Major, 2 points)
+
+- **Frontend:** Vue 3 with Vue Router (`webapp/frontend/src`): single-file components,
+  reactive state (`ref`), a route guard that checks the session before each page, and
+  a shared session state (`src/session.js`). Built with Vite.
+- **Backend:** Express 5 (`webapp/backend/src`): routers, middlewares (authentication,
+  validation with zod, rate limits, error handler), controllers and services.
+- **Why:** see the justification in the Technical Stack section.
+
+### Support for additional browsers (Minor, 1 point)
+
+Tested on the latest stable **Google Chrome**, **Mozilla Firefox** and **Microsoft
+Edge**, on every feature: sign up, log in (password, 42, badge), 2FA setup and login,
+badge pairing and unlinking with the WebSocket feedback, the game, the Privacy Policy
+and Terms of Service pages. The site only uses standard web APIs (`fetch`, `WebSocket`,
+CSS without vendor prefixes), so no browser-specific code was needed.
+
+Known limitations:
+
+- Every browser shows a warning for the self-signed certificate of the WAF on the first
+  visit; it has to be accepted once (development certificate, see `make`).
+- Safari was not tested.
 
 ### Cybersecurity: WAF/ModSecurity + Vault
 
@@ -494,11 +556,10 @@ minute per user.
 every rule that could race (unique pair, key limit, unique username and email) is
 enforced by the database, not by a check made before the write.
 
-TODO (team): front pages for profiles, friends and chat.
+**Known limitation:** the front pages for profiles, friends and chat are still being
+built; until then, these features are used through the API (`requests/api.http`).
 
 ## Individual Contributions
-
-TODO (team): each member's contributions.
 
 - **anpicard**:
   - Login page, signup page, settings page and 2FA pages in Vue (`webapp/frontend`), and
@@ -554,6 +615,12 @@ TODO (team): each member's contributions.
     The order was chosen so that the Vault data volume stays the same.
   - A fresh clone has no TLS certificate (it is ignored by Git): `make` now creates
     one, readable by the nginx user of the container.
+- **tmarion**: visual identity of the site (cream and chocolate theme, Georgia font,
+  layout and responsive design in `src/style.css`), the scratch-ticket game page
+  (`GameView.vue`, `src/game.css`, ticket images) and the first Vue version of the front.
+  - **Challenges:** moving the first static pages to Vue components while keeping the
+    design, and making the layout work on small screens.
+- **fdeleard**: TODO (fdeleard): contributions.
 
 ## Resources
 
@@ -562,4 +629,25 @@ TODO (team): each member's contributions.
 - ModSecurity v3 reference manual: https://github.com/owasp-modsecurity/ModSecurity/wiki
 - HashiCorp Vault documentation (AppRole, KV v2, seal/unseal): https://developer.hashicorp.com/vault/docs
 - Docker Compose documentation (merging files, `COMPOSE_FILE`): https://docs.docker.com/compose/
+- RFC 6238 (TOTP) and RFC 4226 (HOTP): https://www.rfc-editor.org/rfc/rfc6238
+- 42 API documentation (OAuth 2.0 web application flow): https://api.intra.42.fr/apidoc/guides/web_application_flow
+- Vue 3: https://vuejs.org/guide/ — Express 5: https://expressjs.com/
+- MFRC522 / ESP32 Arduino core: https://docs.espressif.com/projects/arduino-esp32/
+
+### Use of AI
+
+AI assistants were used as a helper, never as a replacement for understanding: every
+member reviewed, tested and can explain the code of their part.
+
+- **Explaining concepts and documentation:** TOTP (RFC 6238), OAuth 2.0, Vault AppRole,
+  ModSecurity rules, Docker networking.
+- **Debugging:** reading error messages and logs (Docker, WSL line endings, serial
+  port access, TLS with a self-signed certificate).
+- **Repetitive work:** first drafts of documentation (this README, `.env.example`
+  comments), test scenarios and boilerplate, then rewritten and checked by hand.
+- **Review:** looking for missing checks against the subject (validation, HTTPS, secrets
+  in Git history).
+
+Not delegated to AI: the choice of modules, the architecture, the security decisions
+(what is secret, what is checked where) and the final review of every change.
 
