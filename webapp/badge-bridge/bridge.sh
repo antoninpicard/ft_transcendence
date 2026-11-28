@@ -7,6 +7,8 @@ PID_FILE=bridge.pid
 LOG_FILE=bridge.log
 ERROR_FILE=bridge-error.log
 CERT="$(pwd)/../../cybersecurity/waf/certs/server.crt"
+# Secrets that make loads into Vault: the API reads its DEVICE_TOKEN from there
+BACKEND_SECRETS="$(pwd)/../../cybersecurity/vault/secrets/backend.env"
 
 # Succeed under WSL: only the Windows node.exe sees the COM ports, and WSL cannot keep it running in the background
 on_windows()
@@ -41,6 +43,20 @@ launch()
 	# Trust the self-signed certificate of the WAF; WSLENV passes it to Windows as a Windows path
 	export NODE_EXTRA_CA_CERTS="$CERT"
 	export WSLENV="${WSLENV:+$WSLENV:}NODE_EXTRA_CA_CERTS/p"
+	# Same DEVICE_TOKEN as the API: read from the file make loads into Vault, parsed like
+	# bootstrap.sh does (everything after the first "=", last line wins). Node gives the
+	# environment priority over --env-file, so this replaces the copy in .env.
+	if [ -f "$BACKEND_SECRETS" ]
+	then
+		DEVICE_TOKEN="$(grep '^DEVICE_TOKEN=' "$BACKEND_SECRETS" | tail -n 1 | cut -d= -f2- | tr -d '\r')"
+		if [ -n "$DEVICE_TOKEN" ]
+		then
+			export DEVICE_TOKEN
+			export WSLENV="$WSLENV:DEVICE_TOKEN"
+		else
+			unset DEVICE_TOKEN
+		fi
+	fi
 	if on_windows
 	then
 		powershell.exe -NoProfile -Command "(Start-Process node.exe -ArgumentList '--env-file-if-exists=.env','bridge.js' -WindowStyle Hidden -RedirectStandardOutput $LOG_FILE -RedirectStandardError $ERROR_FILE -PassThru).Id | Set-Content -Encoding ascii $PID_FILE" > /dev/null 2>&1 &
