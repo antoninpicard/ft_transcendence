@@ -1,1 +1,256 @@
-{}
+{
+	"language": {
+		"label": "Langue",
+		"fr": "Français",
+		"en": "English",
+		"es": "Español"
+	},
+	"app": {
+		"navLabel": "Navigation principale",
+		"home": "Accueil",
+		"game": "Jeux",
+		"settings": "Paramètres",
+		"logout": "Déconnexion",
+		"login": "Connexion",
+		"signup": "Inscription",
+		"privacy": "Politique de confidentialité",
+		"terms": "Conditions d'utilisation",
+		"documentTitle": "{page} — CLB Private Club"
+	},
+	"titles": {
+		"login": "Connexion",
+		"twoFactor": "Code de sécurité",
+		"signup": "Inscription",
+		"home": "Accueil",
+		"settings": "Paramètres",
+		"game": "Jeux",
+		"privacy": "Politique de confidentialité",
+		"terms": "Conditions d'utilisation"
+	},
+	"common": {
+		"loading": "Chargement...",
+		"code": "Code",
+		"codeFormat": "Le code fait 6 chiffres.",
+		"serverUnreachable": "Serveur injoignable.",
+		"scanBadge": "Scanne ton badge dans les 10 secondes...",
+		"lastUpdate": "Dernière mise à jour : {date}"
+	},
+	"home": {
+		"welcome": "Bienvenue, {name} 🍪",
+		"playTitle": "Tickets à gratter",
+		"playText": "Étoile Filante, Diamant Rouge ou Royale : tape la bonne séquence de touches et découvre ton gain.",
+		"playButton": "Jouer maintenant",
+		"quoteLabel": "Phrase de motivation",
+		"quoteOther": "Une autre",
+		"securityTitle": "Ta sécurité",
+		"twoFactorStatus": "Double authentification : {status}",
+		"twoFactorOn": "activée",
+		"twoFactorOff": "désactivée",
+		"badgeStatus": "Badge NFC : {status}",
+		"badgeOn": "lié",
+		"badgeOff": "non lié",
+		"manage": "Gérer",
+		"quotes": {
+			"q1": "Démissionnez. Vendez votre maison. Grattez.",
+			"q2": "Ton badge ouvre la porte du club. Pas celle de la banque, heureusement.",
+			"q3": "99 % des joueurs abandonnent juste avant de gagner.",
+			"q4": "Le prochain ticket est le bon. Le suivant aussi.",
+			"q5": "Ton banquier ne comprendrait pas. Nous, si.",
+			"q6": "Un ticket coûte moins cher qu'un psy. Dix, à peu près pareil.",
+			"q7": "Le WAF bloque les injections SQL, pas tes mauvaises décisions.",
+			"q8": "Tes secrets sont bien rangés dans Vault. Tes économies, moins.",
+			"q9": "Ajoute des amis : ils pourront te prêter de l'argent.",
+			"q10": "Erreur 402 : paiement requis. Continue de jouer."
+		}
+	},
+	"login": {
+		"title": "Connexion",
+		"identifier": "Email ou pseudo",
+		"password": "Mot de passe",
+		"submit": "Se connecter",
+		"submitting": "Connexion…",
+		"noAccount": "Pas de compte ? S'inscrire",
+		"with42": "Se connecter avec 42",
+		"withBadge": "Se connecter avec mon badge",
+		"errors": {
+			"identifierEmpty": "Entre ton email ou ton pseudo.",
+			"identifierTooLong": "Email ou pseudo trop long.",
+			"passwordEmpty": "Entre ton mot de passe.",
+			"badCredentials": "Identifiant ou mot de passe incorrect.",
+			"tooManyAttempts": "Trop de tentatives, attends un peu.",
+			"server": "Erreur serveur, réessaie plus tard.",
+			"badgeLogin": "Erreur de connexion.",
+			"unknownBadge": "Ce badge n'est lié à aucun compte."
+		},
+		"oauth": {
+			"oauth_state": "La connexion 42 a expiré, réessaie.",
+			"oauth_denied": "Tu as refusé la connexion sur l'intra 42.",
+			"oauth_email_taken": "L'email de ton compte 42 est déjà utilisé par un autre compte.",
+			"oauth_unavailable": "La connexion 42 est indisponible pour le moment."
+		}
+	},
+	"signup": {
+		"title": "Inscription",
+		"username": "Pseudo",
+		"email": "Email",
+		"password": "Mot de passe (8 caractères minimum)",
+		"submit": "Créer un compte",
+		"submitting": "Création…",
+		"haveAccount": "Déjà un compte ? Se connecter",
+		"errors": {
+			"username": "Pseudo invalide : 3 à 20 caractères, lettres, chiffres, _ ou -",
+			"email": "Email invalide.",
+			"passwordShort": "Le mot de passe doit faire au moins 8 caractères.",
+			"passwordLong": "Le mot de passe doit faire au plus 128 caractères."
+		}
+	},
+	"twoFactor": {
+		"title": "Code de sécurité",
+		"intro": "Ton compte est protégé par la double authentification. Entre le code à 6 chiffres affiché par ton application.",
+		"submit": "Valider",
+		"submitting": "Vérification…",
+		"restart": "Recommencer la connexion"
+	},
+	"settings": {
+		"title": "Paramètres",
+		"badgeTitle": "Badge NFC",
+		"badgeLinked": "Badge lié à ce compte.",
+		"badgeNone": "Aucun badge lié.",
+		"link": "Lier mon badge",
+		"unlink": "Délier mon badge",
+		"paired": "Badge lié !",
+		"alreadyLinked": "Ce badge est déjà lié à un compte.",
+		"unlinked": "Badge délié."
+	},
+	"twoFactorSettings": {
+		"title": "Double authentification",
+		"on": "Double authentification activée.",
+		"off": "Double authentification désactivée.",
+		"enable": "Activer la double authentification",
+		"scan": "Scanne ce QR code avec une application d'authentification (Google Authenticator, FreeOTP...), puis entre le code qu'elle affiche.",
+		"qrAlt": "QR code à scanner avec l'application d'authentification",
+		"manualKey": "Ou saisis cette clé à la main : {secret}",
+		"warningLabel": "Important :",
+		"warning": "{label} garde ce compte dans ton application tant que la double authentification est activée. Sans les codes de l'application, tu ne pourras plus te connecter ni la désactiver. Pour l'enlever, désactive-la d'abord ici, puis supprime-la de l'application.",
+		"confirm": "Confirmer l'activation",
+		"enabled": "Double authentification activée !",
+		"disableWarning": "Désactive la double authentification ici avant de supprimer le compte de ton application : il faut un de ses codes.",
+		"currentCode": "Code actuel de ton application",
+		"disable": "Désactiver la double authentification"
+	},
+	"game": {
+		"leaderboard": "🏆 Classement",
+		"leaderboardKicker": "Les plus chanceux du club",
+		"you": "vous",
+		"points": "{score} pts",
+		"ticketAlt": "Ticket à gratter {name}",
+		"coverAlt": "Couverture à gratter du ticket {name}",
+		"prizeUnit": "POINTS",
+		"qteTitle": "Qte2Fou",
+		"qteMissed": "Raté ! Recommence la séquence.",
+		"qteProgress": "{done} / {total} touches",
+		"picker": "🎟 Choisir un jeu",
+		"previewAlt": "Aperçu {name}",
+		"sampleNote": "Maquette visuelle uniquement — tickets, scores et gains fictifs. Aucun jeu ni paiement n'est activé.",
+		"groups": {
+			"beginner": "Débutant",
+			"classic": "Classique",
+			"chaperoned": "Chaperonné"
+		},
+		"tickets": {
+			"shootingStar": {
+				"name": "Étoile Filante",
+				"message": "Bravo ! Vous gagnez 10 points fictifs."
+			},
+			"redDiamond": {
+				"name": "Diamant Rouge",
+				"message": "Magnifique ! Vous gagnez 25 points fictifs."
+			},
+			"royale": {
+				"name": "Royale",
+				"message": "Royal ! Vous gagnez 50 points fictifs."
+			}
+		}
+	},
+	"privacy": {
+		"title": "Politique de confidentialité",
+		"intro": "CLB Private Club est un projet étudiant réalisé dans le cadre du cursus de l'école 42. Cette page explique quelles données nous collectons, pourquoi, et ce que tu peux en faire.",
+		"item": "{label} : {text}",
+		"collectTitle": "Données que nous collectons",
+		"collect": {
+			"identity": {
+				"label": "Pseudo et adresse email",
+				"text": "ils identifient ton compte et te permettent de te connecter."
+			},
+			"password": {
+				"label": "Mot de passe",
+				"text": "jamais stocké en clair. Nous gardons uniquement une empreinte salée (argon2id) qui ne permet pas de retrouver le mot de passe."
+			},
+			"id42": {
+				"label": "Identifiant 42",
+				"text": "si tu te connectes avec 42, nous récupérons ton identifiant, ton login et ton email depuis l'API de l'intra 42. Nous ne recevons jamais ton mot de passe 42."
+			},
+			"badge": {
+				"label": "Badge NFC",
+				"text": "si tu lies un badge, nous enregistrons une empreinte de son identifiant (HMAC-SHA-256 avec une clé secrète du serveur), jamais l'identifiant lui-même."
+			},
+			"friends": {
+				"label": "Amis et messages",
+				"text": "les demandes d'amis et les messages que tu échanges avec tes amis."
+			},
+			"apiKeys": {
+				"label": "Clés d'API",
+				"text": "si tu en crées, nous ne gardons que leur empreinte."
+			},
+			"sessions": {
+				"label": "Sessions",
+				"text": "la date de connexion et d'expiration de chaque session ouverte."
+			}
+		},
+		"whyTitle": "Pourquoi",
+		"why": "Ces données servent uniquement à faire fonctionner ton compte : te connecter (mot de passe, compte 42 ou badge NFC), afficher ton profil, tes amis et tes messages. Elles ne sont ni vendues, ni partagées, ni utilisées pour de la publicité.",
+		"cookiesTitle": "Cookies",
+		"cookieSid": "garde ta session ouverte pendant 7 jours au plus. Il est supprimé quand tu te déconnectes.",
+		"cookieOauth": "présent seulement pendant une connexion avec 42, 10 minutes au plus. Il protège cette connexion contre les attaques par falsification de requête.",
+		"cookiesNote": "Ces cookies sont strictement nécessaires au fonctionnement du site, inaccessibles au JavaScript ({httpOnly}) et envoyés uniquement en HTTPS ({secure}). Aucun cookie de suivi ou de publicité.",
+		"securityTitle": "Sécurité",
+		"security": {
+			"https": "Toutes les communications avec le serveur passent en HTTPS.",
+			"bruteForce": "Les tentatives de connexion trop rapprochées sont bloquées pour limiter les attaques par force brute.",
+			"badge": "Un badge NFC peut être copié : il sert de raccourci de connexion, pas de preuve d'identité absolue."
+		},
+		"thirdPartyTitle": "Services tiers",
+		"thirdParty": "Intra 42 (api.intra.42.fr), uniquement si tu choisis la connexion avec 42. Le site ne charge aucune ressource depuis un autre service.",
+		"retentionTitle": "Conservation",
+		"retention": "Tes données sont conservées tant que ton compte existe. Supprimer ton compte supprime aussi tes sessions, ton badge, tes amis et tes messages. Tu peux délier ton badge à tout moment depuis la page Paramètres, ce qui supprime son empreinte.",
+		"rightsTitle": "Tes droits",
+		"rights": "Conformément au RGPD, tu peux demander l'accès, la rectification ou la suppression de tes données en contactant l'équipe du projet."
+	},
+	"terms": {
+		"title": "Conditions d'utilisation",
+		"intro": "En utilisant CLB Private Club, tu acceptes les conditions ci-dessous. Si tu n'es pas d'accord, n'utilise pas le site.",
+		"serviceTitle": "Le service",
+		"service": "CLB Private Club est un projet étudiant de l'école 42. Aucun argent réel n'est en jeu : il n'y a ni dépôt, ni mise, ni gain réel. Les scores et récompenses affichés sont fictifs.",
+		"accountTitle": "Ton compte",
+		"account": {
+			"required": "Tu dois fournir un pseudo, une adresse email valide et un mot de passe d'au moins 8 caractères.",
+			"secret": "Tu es responsable de la confidentialité de ton mot de passe et de ton badge NFC.",
+			"lostBadge": "Si tu perds ton badge, délie-le depuis la page Paramètres.",
+			"personal": "Un compte est personnel : n'utilise pas celui de quelqu'un d'autre."
+		},
+		"useTitle": "Utilisation acceptable",
+		"use": {
+			"accounts": "Pas de tentative d'accès aux comptes des autres joueurs.",
+			"attacks": "Pas d'attaque du service (force brute, surcharge, exploitation de failles).",
+			"messages": "Pas de messages insultants, haineux ou illégaux envoyés aux autres joueurs.",
+			"automation": "Pas d'utilisation automatisée du site sans clé d'API."
+		},
+		"suspend": "Nous pouvons suspendre un compte qui ne respecte pas ces règles.",
+		"availabilityTitle": "Disponibilité",
+		"availability": "Le service est fourni tel quel, dans un cadre pédagogique. Il peut être interrompu, modifié ou supprimé à tout moment, sans garantie de disponibilité.",
+		"responsibleTitle": "Jeu responsable",
+		"responsible": "Même sans argent réel, le jeu peut devenir un problème. Si toi ou un proche êtes concernés, tu peux contacter Joueurs Info Service au 09 74 75 13 13 (appel non surtaxé) ou sur joueurs-info-service.fr.",
+		"dataTitle": "Données personnelles",
+		"data": "Le traitement de tes données est décrit dans notre {link}."
+	}
+}

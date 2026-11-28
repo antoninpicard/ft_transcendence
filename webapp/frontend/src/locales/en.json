@@ -1,1 +1,256 @@
-{}
+{
+	"language": {
+		"label": "Language",
+		"fr": "Français",
+		"en": "English",
+		"es": "Español"
+	},
+	"app": {
+		"navLabel": "Main navigation",
+		"home": "Home",
+		"game": "Games",
+		"settings": "Settings",
+		"logout": "Log out",
+		"login": "Log in",
+		"signup": "Sign up",
+		"privacy": "Privacy Policy",
+		"terms": "Terms of Service",
+		"documentTitle": "{page} — CLB Private Club"
+	},
+	"titles": {
+		"login": "Log in",
+		"twoFactor": "Security code",
+		"signup": "Sign up",
+		"home": "Home",
+		"settings": "Settings",
+		"game": "Games",
+		"privacy": "Privacy Policy",
+		"terms": "Terms of Service"
+	},
+	"common": {
+		"loading": "Loading...",
+		"code": "Code",
+		"codeFormat": "The code has 6 digits.",
+		"serverUnreachable": "Server unreachable.",
+		"scanBadge": "Scan your badge within 10 seconds...",
+		"lastUpdate": "Last updated: {date}"
+	},
+	"home": {
+		"welcome": "Welcome, {name} 🍪",
+		"playTitle": "Scratch cards",
+		"playText": "Shooting Star, Red Diamond or Royale: type the right key sequence and reveal your prize.",
+		"playButton": "Play now",
+		"quoteLabel": "Motivation quote",
+		"quoteOther": "Another one",
+		"securityTitle": "Your security",
+		"twoFactorStatus": "Two-factor authentication: {status}",
+		"twoFactorOn": "on",
+		"twoFactorOff": "off",
+		"badgeStatus": "NFC badge: {status}",
+		"badgeOn": "linked",
+		"badgeOff": "not linked",
+		"manage": "Manage",
+		"quotes": {
+			"q1": "Quit your job. Sell your house. Scratch.",
+			"q2": "Your badge opens the club's door. Not the bank's, luckily.",
+			"q3": "99% of players give up right before they win.",
+			"q4": "The next ticket is the one. So is the one after.",
+			"q5": "Your banker wouldn't understand. We do.",
+			"q6": "A ticket costs less than a therapist. Ten, about the same.",
+			"q7": "The WAF blocks SQL injections, not your bad decisions.",
+			"q8": "Your secrets are safely stored in Vault. Your savings, less so.",
+			"q9": "Add friends: they can lend you money.",
+			"q10": "Error 402: payment required. Keep playing."
+		}
+	},
+	"login": {
+		"title": "Log in",
+		"identifier": "Email or username",
+		"password": "Password",
+		"submit": "Log in",
+		"submitting": "Logging in…",
+		"noAccount": "No account? Sign up",
+		"with42": "Log in with 42",
+		"withBadge": "Log in with my badge",
+		"errors": {
+			"identifierEmpty": "Enter your email or username.",
+			"identifierTooLong": "Email or username too long.",
+			"passwordEmpty": "Enter your password.",
+			"badCredentials": "Wrong username or password.",
+			"tooManyAttempts": "Too many attempts, wait a moment.",
+			"server": "Server error, try again later.",
+			"badgeLogin": "Login error.",
+			"unknownBadge": "This badge is not linked to any account."
+		},
+		"oauth": {
+			"oauth_state": "The 42 login expired, try again.",
+			"oauth_denied": "You refused the login on the 42 intranet.",
+			"oauth_email_taken": "The email of your 42 account is already used by another account.",
+			"oauth_unavailable": "The 42 login is unavailable for now."
+		}
+	},
+	"signup": {
+		"title": "Sign up",
+		"username": "Username",
+		"email": "Email",
+		"password": "Password (at least 8 characters)",
+		"submit": "Create an account",
+		"submitting": "Creating…",
+		"haveAccount": "Already have an account? Log in",
+		"errors": {
+			"username": "Invalid username: 3 to 20 characters, letters, digits, _ or -",
+			"email": "Invalid email.",
+			"passwordShort": "The password must have at least 8 characters.",
+			"passwordLong": "The password must have at most 128 characters."
+		}
+	},
+	"twoFactor": {
+		"title": "Security code",
+		"intro": "Your account is protected by two-factor authentication. Enter the 6-digit code shown by your app.",
+		"submit": "Confirm",
+		"submitting": "Checking…",
+		"restart": "Start the login again"
+	},
+	"settings": {
+		"title": "Settings",
+		"badgeTitle": "NFC badge",
+		"badgeLinked": "Badge linked to this account.",
+		"badgeNone": "No badge linked.",
+		"link": "Link my badge",
+		"unlink": "Unlink my badge",
+		"paired": "Badge linked!",
+		"alreadyLinked": "This badge is already linked to an account.",
+		"unlinked": "Badge unlinked."
+	},
+	"twoFactorSettings": {
+		"title": "Two-factor authentication",
+		"on": "Two-factor authentication is on.",
+		"off": "Two-factor authentication is off.",
+		"enable": "Turn on two-factor authentication",
+		"scan": "Scan this QR code with an authenticator app (Google Authenticator, FreeOTP...), then enter the code it shows.",
+		"qrAlt": "QR code to scan with the authenticator app",
+		"manualKey": "Or type this key by hand: {secret}",
+		"warningLabel": "Important:",
+		"warning": "{label} keep this account in your app as long as two-factor authentication is on. Without the codes of the app, you will no longer be able to log in or turn it off. To remove it, first turn it off here, then delete it from the app.",
+		"confirm": "Confirm activation",
+		"enabled": "Two-factor authentication turned on!",
+		"disableWarning": "Turn off two-factor authentication here before deleting the account from your app: you need one of its codes.",
+		"currentCode": "Current code of your app",
+		"disable": "Turn off two-factor authentication"
+	},
+	"game": {
+		"leaderboard": "🏆 Leaderboard",
+		"leaderboardKicker": "The luckiest members of the club",
+		"you": "you",
+		"points": "{score} pts",
+		"ticketAlt": "{name} scratch card",
+		"coverAlt": "Scratch-off cover of the {name} card",
+		"prizeUnit": "POINTS",
+		"qteTitle": "Qte2Fou",
+		"qteMissed": "Missed! Start the sequence again.",
+		"qteProgress": "{done} / {total} keys",
+		"picker": "🎟 Choose a game",
+		"previewAlt": "{name} preview",
+		"sampleNote": "Visual mockup only — fictional tickets, scores and prizes. No game or payment is active.",
+		"groups": {
+			"beginner": "Beginner",
+			"classic": "Classic",
+			"chaperoned": "Chaperoned"
+		},
+		"tickets": {
+			"shootingStar": {
+				"name": "Shooting Star",
+				"message": "Well done! You win 10 fictional points."
+			},
+			"redDiamond": {
+				"name": "Red Diamond",
+				"message": "Magnificent! You win 25 fictional points."
+			},
+			"royale": {
+				"name": "Royale",
+				"message": "Royal! You win 50 fictional points."
+			}
+		}
+	},
+	"privacy": {
+		"title": "Privacy Policy",
+		"intro": "CLB Private Club is a student project made as part of the 42 school curriculum. This page explains what data we collect, why, and what you can do about it.",
+		"item": "{label}: {text}",
+		"collectTitle": "Data we collect",
+		"collect": {
+			"identity": {
+				"label": "Username and email address",
+				"text": "they identify your account and let you log in."
+			},
+			"password": {
+				"label": "Password",
+				"text": "never stored in plain text. We only keep a salted hash (argon2id) that cannot be turned back into the password."
+			},
+			"id42": {
+				"label": "42 identifier",
+				"text": "if you log in with 42, we get your identifier, your login and your email from the 42 intranet API. We never receive your 42 password."
+			},
+			"badge": {
+				"label": "NFC badge",
+				"text": "if you link a badge, we store a hash of its identifier (HMAC-SHA-256 with a secret key of the server), never the identifier itself."
+			},
+			"friends": {
+				"label": "Friends and messages",
+				"text": "friend requests and the messages you exchange with your friends."
+			},
+			"apiKeys": {
+				"label": "API keys",
+				"text": "if you create some, we only keep their hash."
+			},
+			"sessions": {
+				"label": "Sessions",
+				"text": "the login and expiry date of each open session."
+			}
+		},
+		"whyTitle": "Why",
+		"why": "This data is only used to run your account: log you in (password, 42 account or NFC badge), show your profile, your friends and your messages. It is never sold, shared or used for advertising.",
+		"cookiesTitle": "Cookies",
+		"cookieSid": "keeps your session open for 7 days at most. It is deleted when you log out.",
+		"cookieOauth": "only present during a login with 42, for 10 minutes at most. It protects this login against request forgery attacks.",
+		"cookiesNote": "These cookies are strictly necessary for the site to work, out of reach of JavaScript ({httpOnly}) and only sent over HTTPS ({secure}). No tracking or advertising cookies.",
+		"securityTitle": "Security",
+		"security": {
+			"https": "All communication with the server goes over HTTPS.",
+			"bruteForce": "Login attempts that come too close together are blocked to limit brute-force attacks.",
+			"badge": "An NFC badge can be copied: it is a login shortcut, not an absolute proof of identity."
+		},
+		"thirdPartyTitle": "Third-party services",
+		"thirdParty": "42 intranet (api.intra.42.fr), only if you choose to log in with 42. The site loads no resource from any other service.",
+		"retentionTitle": "Retention",
+		"retention": "Your data is kept as long as your account exists. Deleting your account also deletes your sessions, your badge, your friends and your messages. You can unlink your badge at any time from the Settings page, which deletes its hash.",
+		"rightsTitle": "Your rights",
+		"rights": "Under the GDPR, you can ask to access, correct or delete your data by contacting the project team."
+	},
+	"terms": {
+		"title": "Terms of Service",
+		"intro": "By using CLB Private Club, you accept the terms below. If you do not agree, do not use the site.",
+		"serviceTitle": "The service",
+		"service": "CLB Private Club is a student project of the 42 school. No real money is involved: there are no deposits, no bets and no real winnings. The scores and rewards shown are fictional.",
+		"accountTitle": "Your account",
+		"account": {
+			"required": "You must provide a username, a valid email address and a password of at least 8 characters.",
+			"secret": "You are responsible for keeping your password and your NFC badge private.",
+			"lostBadge": "If you lose your badge, unlink it from the Settings page.",
+			"personal": "An account is personal: do not use someone else's."
+		},
+		"useTitle": "Acceptable use",
+		"use": {
+			"accounts": "No attempts to access other players' accounts.",
+			"attacks": "No attacks on the service (brute force, overload, exploiting vulnerabilities).",
+			"messages": "No insulting, hateful or illegal messages sent to other players.",
+			"automation": "No automated use of the site without an API key."
+		},
+		"suspend": "We may suspend an account that does not follow these rules.",
+		"availabilityTitle": "Availability",
+		"availability": "The service is provided as is, for educational purposes. It may be interrupted, changed or removed at any time, with no guarantee of availability.",
+		"responsibleTitle": "Responsible gaming",
+		"responsible": "Even without real money, gambling can become a problem. If you or someone close to you is affected, you can contact Joueurs Info Service (France) at 09 74 75 13 13 (standard rate call) or on joueurs-info-service.fr.",
+		"dataTitle": "Personal data",
+		"data": "How your data is handled is described in our {link}."
+	}
+}

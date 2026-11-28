@@ -1,1 +1,256 @@
-{}
+{
+	"language": {
+		"label": "Idioma",
+		"fr": "Français",
+		"en": "English",
+		"es": "Español"
+	},
+	"app": {
+		"navLabel": "Navegación principal",
+		"home": "Inicio",
+		"game": "Juegos",
+		"settings": "Ajustes",
+		"logout": "Cerrar sesión",
+		"login": "Iniciar sesión",
+		"signup": "Registrarse",
+		"privacy": "Política de privacidad",
+		"terms": "Condiciones de uso",
+		"documentTitle": "{page} — CLB Private Club"
+	},
+	"titles": {
+		"login": "Iniciar sesión",
+		"twoFactor": "Código de seguridad",
+		"signup": "Registro",
+		"home": "Inicio",
+		"settings": "Ajustes",
+		"game": "Juegos",
+		"privacy": "Política de privacidad",
+		"terms": "Condiciones de uso"
+	},
+	"common": {
+		"loading": "Cargando...",
+		"code": "Código",
+		"codeFormat": "El código tiene 6 cifras.",
+		"serverUnreachable": "Servidor inaccesible.",
+		"scanBadge": "Escanea tu tarjeta en los próximos 10 segundos...",
+		"lastUpdate": "Última actualización: {date}"
+	},
+	"home": {
+		"welcome": "Bienvenido, {name} 🍪",
+		"playTitle": "Rasca y gana",
+		"playText": "Estrella Fugaz, Diamante Rojo o Royale: teclea la secuencia correcta y descubre tu premio.",
+		"playButton": "Jugar ahora",
+		"quoteLabel": "Frase de motivación",
+		"quoteOther": "Otra",
+		"securityTitle": "Tu seguridad",
+		"twoFactorStatus": "Autenticación en dos pasos: {status}",
+		"twoFactorOn": "activada",
+		"twoFactorOff": "desactivada",
+		"badgeStatus": "Tarjeta NFC: {status}",
+		"badgeOn": "vinculada",
+		"badgeOff": "no vinculada",
+		"manage": "Gestionar",
+		"quotes": {
+			"q1": "Deja tu trabajo. Vende tu casa. Rasca.",
+			"q2": "Tu tarjeta abre la puerta del club. No la del banco, por suerte.",
+			"q3": "El 99 % de los jugadores se rinde justo antes de ganar.",
+			"q4": "El próximo boleto es el bueno. El siguiente también.",
+			"q5": "Tu banquero no lo entendería. Nosotros sí.",
+			"q6": "Un boleto cuesta menos que un psicólogo. Diez, más o menos lo mismo.",
+			"q7": "El WAF bloquea las inyecciones SQL, no tus malas decisiones.",
+			"q8": "Tus secretos están bien guardados en Vault. Tus ahorros, no tanto.",
+			"q9": "Añade amigos: podrán prestarte dinero.",
+			"q10": "Error 402: pago requerido. Sigue jugando."
+		}
+	},
+	"login": {
+		"title": "Iniciar sesión",
+		"identifier": "Email o nombre de usuario",
+		"password": "Contraseña",
+		"submit": "Iniciar sesión",
+		"submitting": "Conectando…",
+		"noAccount": "¿No tienes cuenta? Regístrate",
+		"with42": "Iniciar sesión con 42",
+		"withBadge": "Iniciar sesión con mi tarjeta",
+		"errors": {
+			"identifierEmpty": "Introduce tu email o tu nombre de usuario.",
+			"identifierTooLong": "Email o nombre de usuario demasiado largo.",
+			"passwordEmpty": "Introduce tu contraseña.",
+			"badCredentials": "Usuario o contraseña incorrectos.",
+			"tooManyAttempts": "Demasiados intentos, espera un poco.",
+			"server": "Error del servidor, inténtalo más tarde.",
+			"badgeLogin": "Error al iniciar sesión.",
+			"unknownBadge": "Esta tarjeta no está vinculada a ninguna cuenta."
+		},
+		"oauth": {
+			"oauth_state": "El inicio de sesión con 42 ha caducado, inténtalo de nuevo.",
+			"oauth_denied": "Has rechazado el inicio de sesión en la intra de 42.",
+			"oauth_email_taken": "El email de tu cuenta 42 ya lo usa otra cuenta.",
+			"oauth_unavailable": "El inicio de sesión con 42 no está disponible por ahora."
+		}
+	},
+	"signup": {
+		"title": "Registro",
+		"username": "Nombre de usuario",
+		"email": "Email",
+		"password": "Contraseña (8 caracteres como mínimo)",
+		"submit": "Crear una cuenta",
+		"submitting": "Creando…",
+		"haveAccount": "¿Ya tienes cuenta? Inicia sesión",
+		"errors": {
+			"username": "Nombre de usuario no válido: de 3 a 20 caracteres, letras, cifras, _ o -",
+			"email": "Email no válido.",
+			"passwordShort": "La contraseña debe tener al menos 8 caracteres.",
+			"passwordLong": "La contraseña debe tener como máximo 128 caracteres."
+		}
+	},
+	"twoFactor": {
+		"title": "Código de seguridad",
+		"intro": "Tu cuenta está protegida con la autenticación en dos pasos. Introduce el código de 6 cifras que muestra tu aplicación.",
+		"submit": "Validar",
+		"submitting": "Verificando…",
+		"restart": "Volver a iniciar sesión"
+	},
+	"settings": {
+		"title": "Ajustes",
+		"badgeTitle": "Tarjeta NFC",
+		"badgeLinked": "Tarjeta vinculada a esta cuenta.",
+		"badgeNone": "Ninguna tarjeta vinculada.",
+		"link": "Vincular mi tarjeta",
+		"unlink": "Desvincular mi tarjeta",
+		"paired": "¡Tarjeta vinculada!",
+		"alreadyLinked": "Esta tarjeta ya está vinculada a una cuenta.",
+		"unlinked": "Tarjeta desvinculada."
+	},
+	"twoFactorSettings": {
+		"title": "Autenticación en dos pasos",
+		"on": "Autenticación en dos pasos activada.",
+		"off": "Autenticación en dos pasos desactivada.",
+		"enable": "Activar la autenticación en dos pasos",
+		"scan": "Escanea este código QR con una aplicación de autenticación (Google Authenticator, FreeOTP...) y luego introduce el código que muestra.",
+		"qrAlt": "Código QR para escanear con la aplicación de autenticación",
+		"manualKey": "O introduce esta clave a mano: {secret}",
+		"warningLabel": "Importante:",
+		"warning": "{label} conserva esta cuenta en tu aplicación mientras la autenticación en dos pasos esté activada. Sin los códigos de la aplicación, ya no podrás iniciar sesión ni desactivarla. Para quitarla, desactívala primero aquí y luego bórrala de la aplicación.",
+		"confirm": "Confirmar la activación",
+		"enabled": "¡Autenticación en dos pasos activada!",
+		"disableWarning": "Desactiva aquí la autenticación en dos pasos antes de borrar la cuenta de tu aplicación: necesitas uno de sus códigos.",
+		"currentCode": "Código actual de tu aplicación",
+		"disable": "Desactivar la autenticación en dos pasos"
+	},
+	"game": {
+		"leaderboard": "🏆 Clasificación",
+		"leaderboardKicker": "Los más afortunados del club",
+		"you": "tú",
+		"points": "{score} pts",
+		"ticketAlt": "Boleto de rasca y gana {name}",
+		"coverAlt": "Capa para rascar del boleto {name}",
+		"prizeUnit": "PUNTOS",
+		"qteTitle": "Qte2Fou",
+		"qteMissed": "¡Fallo! Vuelve a empezar la secuencia.",
+		"qteProgress": "{done} / {total} teclas",
+		"picker": "🎟 Elegir un juego",
+		"previewAlt": "Vista previa de {name}",
+		"sampleNote": "Solo una maqueta visual: boletos, puntuaciones y premios ficticios. No hay ningún juego ni pago activado.",
+		"groups": {
+			"beginner": "Principiante",
+			"classic": "Clásico",
+			"chaperoned": "Acompañado"
+		},
+		"tickets": {
+			"shootingStar": {
+				"name": "Estrella Fugaz",
+				"message": "¡Bravo! Ganas 10 puntos ficticios."
+			},
+			"redDiamond": {
+				"name": "Diamante Rojo",
+				"message": "¡Magnífico! Ganas 25 puntos ficticios."
+			},
+			"royale": {
+				"name": "Royale",
+				"message": "¡Real! Ganas 50 puntos ficticios."
+			}
+		}
+	},
+	"privacy": {
+		"title": "Política de privacidad",
+		"intro": "CLB Private Club es un proyecto de estudiantes realizado dentro del currículo de la escuela 42. Esta página explica qué datos recogemos, por qué y qué puedes hacer con ellos.",
+		"item": "{label}: {text}",
+		"collectTitle": "Datos que recogemos",
+		"collect": {
+			"identity": {
+				"label": "Nombre de usuario y email",
+				"text": "identifican tu cuenta y te permiten iniciar sesión."
+			},
+			"password": {
+				"label": "Contraseña",
+				"text": "nunca se guarda en claro. Solo guardamos una huella con sal (argon2id) que no permite recuperar la contraseña."
+			},
+			"id42": {
+				"label": "Identificador 42",
+				"text": "si inicias sesión con 42, obtenemos tu identificador, tu login y tu email desde la API de la intra de 42. Nunca recibimos tu contraseña de 42."
+			},
+			"badge": {
+				"label": "Tarjeta NFC",
+				"text": "si vinculas una tarjeta, guardamos una huella de su identificador (HMAC-SHA-256 con una clave secreta del servidor), nunca el identificador en sí."
+			},
+			"friends": {
+				"label": "Amigos y mensajes",
+				"text": "las solicitudes de amistad y los mensajes que intercambias con tus amigos."
+			},
+			"apiKeys": {
+				"label": "Claves de API",
+				"text": "si creas alguna, solo guardamos su huella."
+			},
+			"sessions": {
+				"label": "Sesiones",
+				"text": "la fecha de inicio y de caducidad de cada sesión abierta."
+			}
+		},
+		"whyTitle": "Por qué",
+		"why": "Estos datos solo sirven para que tu cuenta funcione: iniciar sesión (contraseña, cuenta 42 o tarjeta NFC), mostrar tu perfil, tus amigos y tus mensajes. Nunca se venden, se comparten ni se usan para publicidad.",
+		"cookiesTitle": "Cookies",
+		"cookieSid": "mantiene tu sesión abierta durante 7 días como máximo. Se borra cuando cierras sesión.",
+		"cookieOauth": "solo existe durante un inicio de sesión con 42, 10 minutos como máximo. Protege ese inicio de sesión contra los ataques de falsificación de petición.",
+		"cookiesNote": "Estas cookies son estrictamente necesarias para que el sitio funcione, inaccesibles para JavaScript ({httpOnly}) y enviadas solo por HTTPS ({secure}). Ninguna cookie de seguimiento ni de publicidad.",
+		"securityTitle": "Seguridad",
+		"security": {
+			"https": "Todas las comunicaciones con el servidor pasan por HTTPS.",
+			"bruteForce": "Los intentos de inicio de sesión demasiado seguidos se bloquean para limitar los ataques de fuerza bruta.",
+			"badge": "Una tarjeta NFC se puede copiar: sirve de atajo para iniciar sesión, no de prueba absoluta de identidad."
+		},
+		"thirdPartyTitle": "Servicios de terceros",
+		"thirdParty": "Intra de 42 (api.intra.42.fr), solo si eliges iniciar sesión con 42. El sitio no carga ningún recurso de otro servicio.",
+		"retentionTitle": "Conservación",
+		"retention": "Tus datos se conservan mientras exista tu cuenta. Borrar tu cuenta borra también tus sesiones, tu tarjeta, tus amigos y tus mensajes. Puedes desvincular tu tarjeta en cualquier momento desde la página Ajustes, lo que borra su huella.",
+		"rightsTitle": "Tus derechos",
+		"rights": "De acuerdo con el RGPD, puedes pedir el acceso, la rectificación o la supresión de tus datos contactando con el equipo del proyecto."
+	},
+	"terms": {
+		"title": "Condiciones de uso",
+		"intro": "Al usar CLB Private Club, aceptas las condiciones siguientes. Si no estás de acuerdo, no uses el sitio.",
+		"serviceTitle": "El servicio",
+		"service": "CLB Private Club es un proyecto de estudiantes de la escuela 42. No hay dinero real en juego: no hay depósitos, ni apuestas, ni ganancias reales. Las puntuaciones y recompensas que se muestran son ficticias.",
+		"accountTitle": "Tu cuenta",
+		"account": {
+			"required": "Debes indicar un nombre de usuario, un email válido y una contraseña de al menos 8 caracteres.",
+			"secret": "Eres responsable de la confidencialidad de tu contraseña y de tu tarjeta NFC.",
+			"lostBadge": "Si pierdes tu tarjeta, desvincúlala desde la página Ajustes.",
+			"personal": "Una cuenta es personal: no uses la de otra persona."
+		},
+		"useTitle": "Uso aceptable",
+		"use": {
+			"accounts": "Ningún intento de acceder a las cuentas de otros jugadores.",
+			"attacks": "Ningún ataque al servicio (fuerza bruta, sobrecarga, explotación de fallos).",
+			"messages": "Ningún mensaje insultante, de odio o ilegal enviado a otros jugadores.",
+			"automation": "Ningún uso automatizado del sitio sin clave de API."
+		},
+		"suspend": "Podemos suspender una cuenta que no respete estas reglas.",
+		"availabilityTitle": "Disponibilidad",
+		"availability": "El servicio se ofrece tal cual, con fines educativos. Puede interrumpirse, modificarse o eliminarse en cualquier momento, sin garantía de disponibilidad.",
+		"responsibleTitle": "Juego responsable",
+		"responsible": "Incluso sin dinero real, el juego puede convertirse en un problema. Si a ti o a alguien cercano le afecta, puedes contactar con Joueurs Info Service (Francia) en el 09 74 75 13 13 (llamada sin recargo) o en joueurs-info-service.fr.",
+		"dataTitle": "Datos personales",
+		"data": "El tratamiento de tus datos se describe en nuestra {link}."
+	}
+}
